@@ -1,0 +1,17 @@
+{
+    "name": "Leptolm Dev Environment",
+    "build": {
+        "dockerfile": "Dockerfile"
+    },
+    "forwardPorts": [3000, 3001],
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "rust-lang.rust-analyzer",
+                "tamasfe.even-better-toml",
+                "serayuzgur.crates"
+            ]
+        }
+    },
+    "remoteUser": "vscode"
+}
