@@ -1,0 +1,7 @@
+[package]
+name = "leptolm-core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+reactive_stores = { version = "0.1" }

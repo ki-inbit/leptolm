@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["shared", "frontend", "backend"]
+members = ["shared", "frontend", "backend", "leptolm-core"] # 👑 leptolm-core を追加
 
 [workspace.dependencies]
 serde = { version = "1.0", features = ["derive"] }
