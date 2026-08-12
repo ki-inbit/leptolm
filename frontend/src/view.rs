@@ -7,6 +7,7 @@ use leptolm_core::Dispatcher;
 use crate::model::Action;
 use crate::update::MyApp;
 use crate::model::AppStateStoreFields;
+use crate::components::GenericInputForm;
 
 #[component]
 pub fn App() -> impl IntoView {
@@ -15,8 +16,6 @@ pub fn App() -> impl IntoView {
 
     let is_open = RwSignal::new(false);
     let draft_name = RwSignal::new(String::new());
-    let input_item = RwSignal::new(String::new());
-    let input_qty = RwSignal::new(1u32);
 
     provide_context(dispatcher);
     provide_meta_context();
@@ -24,6 +23,21 @@ pub fn App() -> impl IntoView {
     mview! {
         div style="font-family: sans-serif; padding: 20px;" {
             h1 { "コア分離版 ハイブリッドアーキテクチャ" }
+
+            {move || store.global_error().get().map(|err| mview! {
+                div style="background: #ffebee; color: #c62828; padding: 15px; margin-bottom: 20px; border-left: 5px solid #c62828; display: flex; justify-content: space-between;" {
+                    span { strong { "🚨 システムエラー: " } {err} }
+                    button 
+                        on:click={move |_| dispatcher.dispatch(Action::ClearGlobalError)}
+                        style="background: transparent; border: 1px solid #c62828; color: #c62828; cursor: pointer;" 
+                    { "✕ 閉じる" }
+                }
+            })}
+
+            button 
+                style="margin-bottom: 20px; background: #ffcdd2; color: #b71c1c; border: 1px solid #e53935; padding: 5px 10px;"
+                on:click={move |_| dispatcher.dispatch_error("意図的に発生させた重大なシステムエラーです！")} 
+            { "🔥 強制エラーテスト" }
 
             div style="background: #f8f9fa; padding: 10px; margin-bottom: 20px;" {
                 p { "📢 ステータス: " strong { {move || store.status_message().get()} } }
@@ -35,45 +49,20 @@ pub fn App() -> impl IntoView {
                 button on:click={move |_| dispatcher.dispatch(Action::Increment)} { "＋" }
                 button on:click={move |_| dispatcher.dispatch(Action::Decrement)} { "－" }
                 button on:click={move |_| dispatcher.dispatch(Action::FetchUser(42))} { "ユーザー読込" }
-
-                // 👑 ここにボタンを追加！
                 button 
                     style="margin-left: 10px; background: #e0f7fa; border: 1px solid #00acc1; padding: 4px 8px; border-radius: 4px;"
                     on:click={move |_| dispatcher.dispatch(Action::FetchBothAsync)} 
                 { "⚡ ユーザー＆リスト同時取得" }
             }
 
-            div style="margin-bottom: 20px; padding: 15px; background: #fff9e6; border: 1px solid #ffe0b2; border-radius: 4px;" {
-                h3 style="margin-top: 0; color: #f57c00;" { "🚀 アイテム追加 (POST)" }
-                div style="display: flex; gap: 10px; align-items: center;" {
-                    input
-                        type="text"
-                        placeholder="商品名"
-                        prop:value={move || input_item.get()}
-                        on:input={move |e| input_item.set(event_target_value(&e))}
-                    ;
-                    input
-                        type="number"
-                        style="width: 60px;"
-                        prop:value={move || input_qty.get().to_string()}
-                        on:input={move |e| {
-                            if let Ok(val) = event_target_value(&e).parse::<u32>() {
-                                input_qty.set(val);
-                            }
-                        }}
-                    ;
-                    button
-                        on:click={move |_| {
-                            let name = input_item.get_untracked();
-                            if !name.is_empty() {
-                                dispatcher.dispatch(Action::AddItemAsync(name, input_qty.get_untracked()));
-                                input_item.set(String::new());
-                                input_qty.set(1);
-                            }
-                        }}
-                    { "追加する" }
-                }
-            }
+            {view! { 
+                <GenericInputForm 
+                    title="🚀 アイテム追加 (完全汎用化!)"
+                    placeholder="何を追加しますか？"
+                    button_text="送信する"
+                    on_submit={move |name, qty| Action::AddItemAsync(name, qty)}
+                /> 
+            }}
 
             div style="margin-bottom: 20px; padding: 15px; background: #e3f2fd; border: 1px solid #90caf9; border-radius: 4px;" {
                 h3 style="margin-top: 0; color: #1976d2;" { "📋 アイテム一覧 (GET)" }

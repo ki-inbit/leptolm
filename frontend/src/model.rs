@@ -8,6 +8,7 @@ pub struct AppState {
     pub add_item_id: u32,
     pub fetch_list_id: u32,
     pub items: Vec<String>,
+    pub global_error: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -24,12 +25,12 @@ pub enum Action {
     FetchListAsync,
     FetchListSuccess { request_id: u32, items: Vec<String> },
     FetchListFailed { request_id: u32, error: String },
-    // 👑 テスト用に新しいアクションを追加！
-    FetchBothAsync, 
+    FetchBothAsync,
+    GlobalError(String),
+    ClearGlobalError,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-// 👑 名前を Cmd から Effect に変更！
 pub enum Effect {
     FetchUserEffect(u32),
     AddItemEffect { request_id: u32, item_name: String, quantity: u32 },

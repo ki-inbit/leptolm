@@ -1,8 +1,8 @@
 pub mod model;
 pub mod update;
 pub mod view;
+pub mod components; // 👑 これを追加してモジュールを認識させます！
 
-// バックエンドから `` として呼べるように re-export しておく
 pub use view::App;
 
 #[cfg(feature = "hydrate")]
