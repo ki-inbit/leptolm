@@ -7,7 +7,7 @@ use leptolm_core::Dispatcher;
 use crate::model::Action;
 use crate::update::MyApp;
 use crate::model::AppStateStoreFields;
-use crate::components::GenericInputForm;
+use crate::components::{GenericInputForm, UnityPlayer};
 
 #[component]
 pub fn App() -> impl IntoView {
@@ -104,6 +104,14 @@ pub fn App() -> impl IntoView {
                         { "正式な名前に反映" }
                     }
                 })}
+            }
+
+
+
+            div style="margin-top: 20px; padding: 10px; border: 1px solid #ccc; border-radius: 4px;" {
+                {view! { 
+                    <UnityPlayer/>
+                }}
             }
         }
     }

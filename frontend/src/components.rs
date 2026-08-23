@@ -15,8 +15,8 @@ pub fn GenericInputForm<F>(
 where
     F: Fn(String, u32) -> Action + Clone + Send + Sync + 'static,
 {
-    let dispatcher = use_context::<Dispatcher<MyApp>>()
-        .expect("ディスパッチャーが見つかりません");
+    // 👑 修正1: expect を削除し、Option<Dispatcher<MyApp>> として安全に受け取る
+    let dispatcher = use_context::<Dispatcher<MyApp>>();
 
     let input_text = RwSignal::new(String::new());
     let input_qty = RwSignal::new(1u32);
@@ -47,16 +47,58 @@ where
                         move |_| {
                             let text = input_text.get_untracked();
                             if !text.is_empty() {
-                                let action = on_submit(text, input_qty.get_untracked());
-                                dispatcher.dispatch(action);
-                                
-                                input_text.set(String::new());
-                                input_qty.set(1);
+                                // 👑 修正2: ディスパッチャーが存在する場合（ブラウザでのHydration完了後）のみ実行
+                                if let Some(disp) = &dispatcher {
+                                    let action = on_submit(text, input_qty.get_untracked());
+                                    disp.dispatch(action);
+                                    
+                                    input_text.set(String::new());
+                                    input_qty.set(1);
+                                }
                             }
                         }
                     }
                 { {button_text} }
             }
+        }
+    }
+}
+
+// 👑 Unityを表示するための汎用コンポーネント (ここは変更なし)
+#[component]
+pub fn UnityPlayer() -> impl IntoView {
+    mview! {
+        div style="width: 960px; height: 600px; margin: 0 auto; background: #000;" {
+            
+            // 1. Unityが描画するためのキャンバス
+            canvas id="unity-canvas" style="width: 100%; height: 100%;" {}
+
+            // 2. Unityのローダースクリプトを読み込む（ファイル名は自分のものに変えてください）
+            script src="/unity/Build/build.loader.js" {}
+
+            // 3. ローダーを使ってUnityを起動するスクリプト
+            script { "
+                // ページが読み込まれたら少し遅延させてUnityを起動
+                setTimeout(() => {
+                    var canvas = document.querySelector('#unity-canvas');
+                    var config = {
+                        dataUrl: '/unity/Build/build.data',
+                        frameworkUrl: '/unity/Build/build.framework.js',
+                        codeUrl: '/unity/Build/build.wasm',
+                        streamingAssetsUrl: 'StreamingAssets',
+                        companyName: 'DefaultCompany',
+                        productName: 'My Unity Game',
+                        productVersion: '1.0',
+                    };
+                    createUnityInstance(canvas, config)
+                        .then((unityInstance) => {
+                            console.log('🎉 Unity起動成功！');
+                        })
+                        .catch((message) => {
+                            alert('Unityの読み込みに失敗しました: ' + message);
+                        });
+                }, 500); // ローダーJSの読み込み待ちのため少し待つ
+            " }
         }
     }
 }

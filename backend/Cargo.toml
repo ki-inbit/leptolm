@@ -1,18 +1,22 @@
 [package]
-name = "backend"
+# 👑 アンダースコア(_)は絶対NG！ハイフン(-)にしてください
+name = "backend" 
 version = "0.1.0"
 edition = "2021"
 
-[dependencies]
-shared = { path = "../shared" }
-frontend = { path = "../frontend" }
-tokio = { version = "1.0", features = ["full"] }
-axum = { version = "0.7", features = ["macros"] }
-tower-http = { version = "0.5", features = ["fs"] }
-serde_json = { workspace = true }
-leptos = { workspace = true, features = ["ssr"] }
-leptos_axum = { version = "0.7" }
-leptos_meta = { version = "0.7", features = ["ssr"] }
+[lib]
+crate-type = ["cdylib"]
 
-[features]
-ssr = ["leptos/ssr", "leptos_meta/ssr", "frontend/ssr"]
+[dependencies]
+wit-bindgen = "0.35.0"
+wit-bindgen-rt = "0.35.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+leptos = { version = "0.7", features = ["ssr"] }
+frontend = { path = "../frontend" }
+shared = { path = "../shared" }
+
+# 👑 最新のcargo-componentに合わせた1行記法！
+[package.metadata.component]
+target = "wasi:http/proxy@0.2.3"
