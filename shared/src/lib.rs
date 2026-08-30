@@ -1,14 +1,12 @@
-use serde::{Deserialize, Serialize};
+//sharedはwitから自動生成されるのでこのディレクトリはいじる必要なし!
 
-#[derive(Debug, Deserialize, Serialize)]
-pub struct AddItemReq {
-    pub item_name: String,
-    pub quantity: u32,
-}
+// 👑 wit/api.wit から型を自動生成し、Serde の機能も自動付与する魔法！
+wit_bindgen::generate!({
+    world: "shared-types", // 👑 "router" から "shared-types" に変更！
+    path: "../wit",
+    additional_derives: [serde::Serialize, serde::Deserialize],
+});
 
-#[derive(Debug, Deserialize, Serialize)]
-pub struct AddItemRes {
-    pub success: bool,
-    pub message: String,
-    pub server_time: String,
-}
+// フロントエンドが使いやすいように、エイリアス（別名）をエクスポートしておく
+// 👑 修正: 個別の名前ではなく `*` を使って、models の中身をまるごと外に公開する！
+pub use leptolm::api::models::*;

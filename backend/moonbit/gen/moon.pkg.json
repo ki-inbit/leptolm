@@ -1,0 +1,19 @@
+{
+  "is-main": true,
+      "warn-list": "-44",
+      "import": [
+      { "path" : "leptolm/api/gen/interface/leptolm/api/models", "alias" : "models" }
+      ],
+      "link": {
+            "wasm": {
+                  "export-memory-name": "memory",
+                  "heap-start-address": 16,
+                  "exports": [
+                  "mbt_ffi_cabi_realloc:cabi_realloc",
+                  "wasmExportProcessAddItem:leptolm:api/models#process-add-item",
+                  "wasmExportProcessAddItemPostReturn:cabi_post_leptolm:api/models#process-add-item"
+                  ]
+            }
+      }
+
+}

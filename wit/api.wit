@@ -1,0 +1,32 @@
+package leptolm:api;
+
+interface models {
+    record add-item-req {
+        item-name: string,
+        quantity: u32,
+    }
+
+    record add-item-res {
+        success: bool,
+        message: string,
+        server-time: string,
+    }
+
+    // 👑 関数をインターフェースの中に定義します
+    process-add-item: func(req: add-item-req) -> add-item-res;
+}
+
+// 👑 追加: shared クレート専用の世界（リンカーのバグ回避用）
+world shared-types {
+    import models;
+}
+
+// 👑 Rust(ルーター)用の世界：APIを「呼び出す（import）」側
+world router {
+    import models;
+}
+
+// 👑 MoonBit(バックエンド)用の世界：APIを「提供する（export）」側
+world backend {
+    export models;
+}
