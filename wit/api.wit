@@ -38,9 +38,6 @@ world shared-types {
 // 👑 Rust(ルーター)用の世界：APIを「呼び出す（import）」側
 world router {
     import models;
-    // 👑 Cloudflare専用の超シンプルなエントリポイントを追加！
-    // メソッド, パス, ボディを受け取り、(ステータスコード, Content-Type, エンコーディング, レスポンスボディ) を返す
-    export handle-cloudflare: func(method: string, path: string, body: list<u8>) -> tuple<u16, string, option<string>, list<u8>>;
 }
 
 // 👑 MoonBit(バックエンド)用の世界：APIを「提供する（export）」側

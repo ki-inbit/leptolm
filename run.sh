@@ -83,6 +83,7 @@ fi
 echo "📦 MoonBit の Core WASM に WIT メタデータを埋め込み中..."
 wasm-tools component embed wit \
     --world backend \
+    --encoding utf16 \
     "$BACKEND_CORE_WASM" \
     -o backend-embedded.wasm
 
