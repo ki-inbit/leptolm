@@ -3,30 +3,35 @@ set -e
 
 GREEN='\033[0;32m'
 CYAN='\033[0;36m'
+YELLOW='\033[0;33m'
 NC='\033[0m'
 
 # ==========================================
-# ビルドモードの設定（デフォルト: debug）
+# 👑 ビルドモードとターゲットの設定
 # ==========================================
+# Cloudflare環境はファイルサイズ制限が厳しいため、デフォルトを release にします
 MODE="${BUILD_MODE:-release}"
+TARGET="cloudflare"
+
+echo -e "${YELLOW}🚀 ビルド開始: [ターゲット: ${TARGET}] [モード: ${MODE}]${NC}"
 
 if [ "$MODE" = "release" ]; then
     CARGO_FLAGS="--release"
     MOON_FLAGS="--release"
     RUST_OUT_DIR="release"
-    MOON_OUT_DIR="release"
 else
     CARGO_FLAGS=""
     MOON_FLAGS=""
     RUST_OUT_DIR="debug"
-    MOON_OUT_DIR="debug"
 fi
+
+# 👑 ここが最重要！ Rustビルド時に cloudflare フィーチャを有効化！
+CARGO_FLAGS="$CARGO_FLAGS --features cloudflare"
 
 cd /workspaces
 rm -f *.wasm
 
 echo -e "${CYAN}🎨 既存のフロントエンドをビルド中...${NC}"
-
 if command -v trunk &> /dev/null; then
     trunk build frontend/index.html --release --dist public
 else
@@ -37,27 +42,26 @@ else
     [ -f frontend/index.html ] && cp frontend/index.html public/
 fi
 
-echo "⚙️ WASI ルーターをビルド中 (${MODE} モード)..."
-cargo component build -p router $CARGO_FLAGS
+echo "⚙️ Cloudflare用 ルーターをビルド中 (${MODE} モード)..."
+# 👑 cargo-componentの強制チェックを回避するため、標準のcargoでビルド
+cargo build -p router --target wasm32-wasip1 $CARGO_FLAGS
 
 echo "🌙 MoonBit バインディングを生成中..."
-# 👑 出力先を backend/moonbit に変更
 wit-bindgen moonbit wit --out-dir backend/moonbit --world backend
 rm -f backend/moonbit/moon.mod.json
 
-# gen パッケージを「主人公（実行ファイル）」に昇格させる
 sed -i '2i \  "is-main": true,' backend/moonbit/gen/moon.pkg.json
-echo 'fn main {}' >> backend/moonbit/gen/ffi.mbt
+if ! grep -q "fn main" backend/moonbit/gen/ffi.mbt; then
+    echo 'fn main {}' >> backend/moonbit/gen/ffi.mbt
+fi
 
 echo "🌙 MoonBit バックエンドをビルド中 (${MODE} モード)..."
-# 👑 移動先を backend/moonbit に変更
 cd backend/moonbit
+moon clean  # 👑 古いキャッシュとWASMを確実に消去！
 moon build --target wasm $MOON_FLAGS
 cd ../..
 
-# パスの定義
 ROUTER_WASM="target/wasm32-wasip1/${RUST_OUT_DIR}/router.wasm"
-# 👑 検索パスを backend/moonbit 配下に変更
 BACKEND_CORE_WASM=$(find backend/moonbit/target backend/moonbit/_build -name "gen.wasm" 2>/dev/null | head -n 1)
 
 if [ -z "$BACKEND_CORE_WASM" ]; then
@@ -68,7 +72,7 @@ echo "🎯 MoonBit WASM を発見: $BACKEND_CORE_WASM"
 BACKEND_COMPONENT_WASM="backend-component.wasm"
 
 # ==========================================
-# 👑 WASI アダプターの準備
+# WASI アダプターの準備と Component の合体
 # ==========================================
 WT_VERSION=$(wasmtime --version | awk '{print $2}')
 ADAPTER="wasi_snapshot_preview1.v${WT_VERSION}.reactor.wasm"
@@ -81,6 +85,7 @@ fi
 echo "📦 MoonBit の Core WASM に WIT メタデータを埋め込み中..."
 wasm-tools component embed wit \
     --world backend \
+    --encoding utf16 \
     "$BACKEND_CORE_WASM" \
     -o backend-embedded.wasm
 
@@ -89,9 +94,16 @@ wasm-tools component new backend-embedded.wasm \
     --adapt wasi_snapshot_preview1="$ADAPTER" \
     -o "$BACKEND_COMPONENT_WASM"
 
-echo "🔗 WASM を合体 (Compose) しています..."
-wac plug "$ROUTER_WASM" --plug "$BACKEND_COMPONENT_WASM" -o app.wasm
+echo "📦 Router を Component へ手動変換中..."
+wasm-tools component embed wit "$ROUTER_WASM" -w cloudflare-router -o router-embedded.wasm
+wasm-tools component new router-embedded.wasm --adapt wasi_snapshot_preview1="$ADAPTER" -o router-component.wasm
 
+echo "🔗 WASM を合体 (Compose) しています..."
+wac plug router-component.wasm --plug "$BACKEND_COMPONENT_WASM" -o app.wasm
+
+# ==========================================
+# 👑 Cloudflare Workers 用のトランスパイルと最適化
+# ==========================================
 echo "🌍 Cloudflare Workers 用に JavaScript へ変換中 (jco)..."
 rm -rf worker/src/wasm
 jco transpile app.wasm -o worker/src/wasm --name appy --base64-cutoff=0
@@ -102,65 +114,62 @@ const fs = require('fs');
 const path = './worker/src/wasm/appy.js';
 let code = fs.readFileSync(path, 'utf8');
 
-// 1. 出力されたすべてのWASMファイルを抽出
+// 1. WASMファイルの抽出
 const matches = [...code.matchAll(/['"](?:\.\/)?(appy\.core[a-zA-Z0-9]*\.wasm)['"]/g)];
-const wasmFiles = [...new Set(matches.map(m => './' + m[1]))];
+const wasmFiles = [...new Set(matches.map(m => m[1]))];
 
+// 2. 静的インポートの生成
 let newImports = '';
 let mockCode = `\nconst __wasm_modules = {\n`;
 wasmFiles.forEach((file, i) => {
-    newImports += `import __wasm_module_${i} from '${file}';\n`;
-    mockCode += `  '${file.replace('./', '')}': __wasm_module_${i},\n`;
+    newImports += `import __wasm_module_${i} from './${file}';\n`;
+    mockCode += `  '${file}': __wasm_module_${i},\n`;
 });
 mockCode += `};\n`;
 
-// 2. ネイティブAPIを安全に迂回するためのフック関数群
+// 3. fetch と WebAssembly を完全にローカルで模倣する
 mockCode += `
-function _mockFetch(url) {
-    const urlStr = url ? url.toString() : '';
-    for (const [name, mod] of Object.entries(__wasm_modules)) {
-        if (urlStr.includes(name)) {
-            return Promise.resolve({ arrayBuffer: () => Promise.resolve(mod) });
-        }
+const fetch = async (url) => ({
+    url: url.toString(),
+    arrayBuffer: async () => ({ isMockBuffer: true, url: url.toString() })
+});
+
+const WebAssembly = Object.create(globalThis.WebAssembly);
+
+WebAssembly.compileStreaming = async (resp) => {
+    const url = (await resp).url;
+    const filename = url.split('/').pop();
+    return __wasm_modules[filename];
+};
+WebAssembly.compile = async (buf) => {
+    if (buf && buf.isMockBuffer) {
+        const filename = buf.url.split('/').pop();
+        return __wasm_modules[filename];
     }
-    return Promise.resolve({ arrayBuffer: () => Promise.reject(new Error('Unexpected WASM fetch: ' + urlStr)) });
-}
-function _mockCompileStreaming(resp) {
-    return Promise.resolve(resp).then(r => (r && typeof r.arrayBuffer === 'function') ? r.arrayBuffer() : r).then(_mockCompile);
-}
-function _mockCompile(mod) {
-    if (mod instanceof globalThis.WebAssembly.Module) return Promise.resolve(mod);
-    throw new Error('Cloudflare Workers blocks dynamic compilation.');
-}
-function _mockInstantiateStreaming(resp, imports) {
-    return Promise.resolve(resp)
-        .then(r => (r && typeof r.arrayBuffer === 'function') ? r.arrayBuffer() : r)
-        .then(mod => {
-            if (mod instanceof globalThis.WebAssembly.Module) {
-                // instantiateStreaming は { module, instance } を返す仕様
-                return globalThis.WebAssembly.instantiate(mod, imports).then(instance => ({ module: mod, instance }));
-            }
-            throw new Error('Cloudflare Workers blocks dynamic instantiation.');
-        });
-}
-function _mockInstantiate(mod, imports) {
-    if (mod instanceof globalThis.WebAssembly.Module) {
-        // 👑 修正: 既にコンパイル済みのModuleを渡す場合、生の Instance のみを返す
-        return globalThis.WebAssembly.instantiate(mod, imports);
+    return globalThis.WebAssembly.compile(buf);
+};
+WebAssembly.instantiateStreaming = async (resp, imports) => {
+    const url = (await resp).url;
+    const filename = url.split('/').pop();
+    const mod = __wasm_modules[filename];
+    const instance = await globalThis.WebAssembly.instantiate(mod, imports);
+    return { module: mod, instance };
+};
+WebAssembly.instantiate = async (modOrBuf, imports) => {
+    if (modOrBuf && modOrBuf.isMockBuffer) {
+        const filename = modOrBuf.url.split('/').pop();
+        const mod = __wasm_modules[filename];
+        const instance = await globalThis.WebAssembly.instantiate(mod, imports);
+        return { module: mod, instance };
     }
-    throw new Error('Cloudflare Workers blocks dynamic instantiation.');
-}
+    return globalThis.WebAssembly.instantiate(modOrBuf, imports);
+};
 `;
 
-// 3. jcoが出力したコードの危険なAPI呼び出しを強制置換
 code = code.replace(/import\.meta\.url/g, "'file:///'");
-code = code.replace(/(?:globalThis\.)?fetch\s*\(/g, "_mockFetch(");
-code = code.replace(/(?:globalThis\.)?WebAssembly\.compileStreaming/g, "_mockCompileStreaming");
-code = code.replace(/(?:globalThis\.)?WebAssembly\.compile/g, "_mockCompile");
-code = code.replace(/(?:globalThis\.)?WebAssembly\.instantiateStreaming/g, "_mockInstantiateStreaming");
-code = code.replace(/(?:globalThis\.)?WebAssembly\.instantiate/g, "_mockInstantiate");
+code = code.replace(/globalThis\.fetch/g, "fetch");
+code = code.replace(/globalThis\.WebAssembly/g, "WebAssembly");
 
-// 4. import文はファイルの先頭に、フック関数はその直後に挿入
 const importRegex = /^import\s+.*?(?:;|\n)/gm;
 let lastImportIndex = 0;
 let match;
@@ -174,4 +183,6 @@ EOF
 
 node optimize_wasm.js
 rm optimize_wasm.js
-echo "✅ 最適化完了！"
+
+echo -e "${GREEN}✅ 最適化完了！ デプロイ準備が整いました。${NC}"
+echo -e "${CYAN}🚀 'wrangler dev' を実行してブラウザで確認してください！${NC}"

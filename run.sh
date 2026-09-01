@@ -3,12 +3,16 @@ set -e
 
 GREEN='\033[0;32m'
 CYAN='\033[0;36m'
+YELLOW='\033[0;33m'
 NC='\033[0m'
 
 # ==========================================
-# ビルドモードの設定（デフォルト: debug）
+# 👑 ビルドモードとターゲットの設定
 # ==========================================
 MODE="${BUILD_MODE:-debug}"
+TARGET="${TARGET:-wasi}" # デフォルトをローカル(WASI)に設定
+
+echo -e "${YELLOW}🚀 ビルド開始: [ターゲット: ${TARGET}] [モード: ${MODE}]${NC}"
 
 if [ "$MODE" = "release" ]; then
     CARGO_FLAGS="--release"
@@ -37,27 +41,25 @@ else
     [ -f frontend/index.html ] && cp frontend/index.html public/
 fi
 
+# 👑 TARGET が WASI なので、Component としてビルド
 echo "⚙️ WASI ルーターをビルド中 (${MODE} モード)..."
 cargo component build -p router $CARGO_FLAGS
 
 echo "🌙 MoonBit バインディングを生成中..."
-# 👑 出力先を backend/moonbit に変更
 wit-bindgen moonbit wit --out-dir backend/moonbit --world backend
 rm -f backend/moonbit/moon.mod.json
 
-# gen パッケージを「主人公（実行ファイル）」に昇格させる
 sed -i '2i \  "is-main": true,' backend/moonbit/gen/moon.pkg.json
-echo 'fn main {}' >> backend/moonbit/gen/ffi.mbt
+if ! grep -q "fn main" backend/moonbit/gen/ffi.mbt; then
+    echo 'fn main {}' >> backend/moonbit/gen/ffi.mbt
+fi
 
 echo "🌙 MoonBit バックエンドをビルド中 (${MODE} モード)..."
-# 👑 移動先を backend/moonbit に変更
 cd backend/moonbit
 moon build --target wasm $MOON_FLAGS
 cd ../..
 
-# パスの定義
 ROUTER_WASM="target/wasm32-wasip1/${RUST_OUT_DIR}/router.wasm"
-# 👑 検索パスを backend/moonbit 配下に変更
 BACKEND_CORE_WASM=$(find backend/moonbit/target backend/moonbit/_build -name "gen.wasm" 2>/dev/null | head -n 1)
 
 if [ -z "$BACKEND_CORE_WASM" ]; then
@@ -68,7 +70,7 @@ echo "🎯 MoonBit WASM を発見: $BACKEND_CORE_WASM"
 BACKEND_COMPONENT_WASM="backend-component.wasm"
 
 # ==========================================
-# 👑 WASI アダプターの準備
+# WASI アダプターの準備と Component の合体
 # ==========================================
 WT_VERSION=$(wasmtime --version | awk '{print $2}')
 ADAPTER="wasi_snapshot_preview1.v${WT_VERSION}.reactor.wasm"
@@ -92,5 +94,5 @@ wasm-tools component new backend-embedded.wasm \
 echo "🔗 WASM を合体 (Compose) しています..."
 wac plug "$ROUTER_WASM" --plug "$BACKEND_COMPONENT_WASM" -o app.wasm
 
-echo "✨ 完全体 WASM の完成！ Wasmtime を起動します..."
+echo -e "${GREEN}✨ 完全体 WASM の完成！ Wasmtime を起動します...${NC}"
 wasmtime serve -S cli=y --dir=. app.wasm

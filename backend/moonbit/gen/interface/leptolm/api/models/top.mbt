@@ -8,6 +8,18 @@ pub(all) struct AddItemRes {
       success : Bool; message : String; server_time : String
 }
 ///|
+/// 👑 1. 新しい型（アイテムの構造体とレスポンス）を追加
+pub(all) struct Item {
+      id : String; item_name : String; quantity : UInt
+}
+///|
+pub(all) struct GetItemsRes {
+      items : Array[Item]
+}
+///|
+/// 👑 2. アイテム一覧取得の関数を定義
+declare pub fn get_items() -> GetItemsRes
+///|
 /// 👑 関数をインターフェースの中に定義します
 declare pub fn process_add_item(req : AddItemReq) -> AddItemRes
 

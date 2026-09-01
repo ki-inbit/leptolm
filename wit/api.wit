@@ -12,6 +12,20 @@ interface models {
         server-time: string,
     }
 
+// 👑 1. 新しい型（アイテムの構造体とレスポンス）を追加
+    record item {
+        id: string,
+        item-name: string,
+        quantity: u32,
+    }
+
+    record get-items-res {
+        items: list<item>,
+    }
+    
+    // 👑 2. アイテム一覧取得の関数を定義
+    get-items: func() -> get-items-res;
+
     // 👑 関数をインターフェースの中に定義します
     process-add-item: func(req: add-item-req) -> add-item-res;
 }
@@ -24,9 +38,18 @@ world shared-types {
 // 👑 Rust(ルーター)用の世界：APIを「呼び出す（import）」側
 world router {
     import models;
+    // 👑 Cloudflare専用の超シンプルなエントリポイントを追加！
+    // メソッド, パス, ボディを受け取り、(ステータスコード, Content-Type, エンコーディング, レスポンスボディ) を返す
+    export handle-cloudflare: func(method: string, path: string, body: list<u8>) -> tuple<u16, string, option<string>, list<u8>>;
 }
 
 // 👑 MoonBit(バックエンド)用の世界：APIを「提供する（export）」側
 world backend {
     export models;
+}
+
+// 👑 Cloudflare専用の世界を新設！ WASIの呪縛を完全に断ち切ります
+world cloudflare-router {
+    import models;
+    export handle-cloudflare: func(method: string, path: string, body: list<u8>) -> tuple<u16, string, option<string>, list<u8>>;
 }

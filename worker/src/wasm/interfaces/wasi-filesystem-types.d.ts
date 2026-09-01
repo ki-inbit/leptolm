@@ -1,7 +1,6 @@
-/** @module Interface wasi:filesystem/types@0.2.3 **/
+/** @module Interface wasi:filesystem/types@0.2.12 **/
 export function filesystemErrorCode(err: Error): ErrorCode | undefined;
-export type Filesize = bigint;
-export type InputStream = import('./wasi-io-streams.js').InputStream;
+export type Error = import('./wasi-io-error.js').Error;
 /**
  * # Variants
  * 
@@ -80,7 +79,13 @@ export type InputStream = import('./wasi-io-streams.js').InputStream;
  * ## `"cross-device"`
  */
 export type ErrorCode = 'access' | 'would-block' | 'already' | 'bad-descriptor' | 'busy' | 'deadlock' | 'quota' | 'exist' | 'file-too-large' | 'illegal-byte-sequence' | 'in-progress' | 'interrupted' | 'invalid' | 'io' | 'is-directory' | 'loop' | 'too-many-links' | 'message-size' | 'name-too-long' | 'no-device' | 'no-entry' | 'no-lock' | 'insufficient-memory' | 'insufficient-space' | 'not-directory' | 'not-empty' | 'not-recoverable' | 'unsupported' | 'no-tty' | 'no-such-device' | 'overflow' | 'not-permitted' | 'pipe' | 'read-only' | 'invalid-seek' | 'text-file-busy' | 'cross-device';
-export type OutputStream = import('./wasi-io-streams.js').OutputStream;
+export interface MetadataHashValue {
+  lower: bigint,
+  upper: bigint,
+}
+export interface PathFlags {
+  symlinkFollow?: boolean,
+}
 export interface DescriptorFlags {
   read?: boolean,
   write?: boolean,
@@ -109,7 +114,9 @@ export interface DescriptorFlags {
  * ## `"socket"`
  */
 export type DescriptorType = 'unknown' | 'block-device' | 'character-device' | 'directory' | 'fifo' | 'symbolic-link' | 'regular-file' | 'socket';
+export type OutputStream = import('./wasi-io-streams.js').OutputStream;
 export type LinkCount = bigint;
+export type Filesize = bigint;
 export type Datetime = import('./wasi-clocks-wall-clock.js').Datetime;
 export interface DescriptorStat {
   type: DescriptorType,
@@ -119,20 +126,13 @@ export interface DescriptorStat {
   dataModificationTimestamp?: Datetime,
   statusChangeTimestamp?: Datetime,
 }
-export interface PathFlags {
-  symlinkFollow?: boolean,
-}
 export interface OpenFlags {
   create?: boolean,
   directory?: boolean,
   exclusive?: boolean,
   truncate?: boolean,
 }
-export interface MetadataHashValue {
-  lower: bigint,
-  upper: bigint,
-}
-export type Error = import('./wasi-io-error.js').Error;
+export type InputStream = import('./wasi-io-streams.js').InputStream;
 
 export class Descriptor {
   /**

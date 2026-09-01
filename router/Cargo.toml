@@ -19,3 +19,6 @@ shared = { path = "../shared" }
 
 [package.metadata.component]
 target = "wasi:http/proxy@0.2.3"
+
+[features]
+cloudflare = []

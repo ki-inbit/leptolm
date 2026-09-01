@@ -6,3 +6,13 @@ pub fn process_add_item(req : AddItemReq) -> AddItemRes {
 
   { success: true, message: msg, server_time: time }
 }
+
+pub fn get_items() -> GetItemsRes {
+  {
+    items: [
+      { id: "item_001", item_name: "ポーション", quantity: 5 },
+      { id: "item_002", item_name: "エリクサー", quantity: 1 },
+      { id: "item_003", item_name: "フェニックスの尾", quantity: 3 },
+    ]
+  }
+}

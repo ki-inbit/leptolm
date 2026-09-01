@@ -445,6 +445,7 @@ dependencies = [
  "log",
  "reactive_stores",
  "reqwest",
+ "serde_json",
  "shared",
  "wasm-bindgen",
  "wasm-bindgen-futures",

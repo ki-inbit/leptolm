@@ -1,7 +1,7 @@
 use leptos::prelude::*;
 use reactive_stores::Store;
 use std::time::Duration;
-use shared::{AddItemReq, AddItemRes};
+use shared::{AddItemReq, AddItemRes, GetItemsRes};
 use leptolm_core::{ElmApp, Dispatcher, Cmd};
 use crate::model::{AppState, Action, Effect, AppStateStoreFields};
 
@@ -99,6 +99,7 @@ impl ElmApp for MyApp {
                     }
                 }, Duration::from_secs(1));
             }
+            
             Effect::AddItemEffect { request_id, item_name, quantity } => {
                 wasm_bindgen_futures::spawn_local(async move {
                     let req_body = AddItemReq { item_name, quantity };
@@ -122,17 +123,30 @@ impl ElmApp for MyApp {
                     let origin = web_sys::window().and_then(|w| w.location().origin().ok()).unwrap_or_else(|| "http://127.0.0.1:3000".to_string());
                     let url = format!("{}/api/items", origin.trim_end_matches('/'));
                     let client = reqwest::Client::new();
+                    
                     match client.get(&url).send().await {
                         Ok(response) => {
-                            if let Ok(items) = response.json::<Vec<String>>().await {
-                                dispatcher.dispatch(Action::FetchListSuccess { request_id, items });
-                            } else {
-                                set_timeout(move || {
-                                    dispatcher.dispatch(Action::FetchListSuccess { 
+                            // 👑 1. JSONではなく、一旦「生の文字列」として受け取る
+                            let text = response.text().await.unwrap_or_default();
+                            
+                            // 👑 2. ブラウザのコンソールに受信したデータを出力！
+                            web_sys::console::log_1(&format!("📦 受信した生データ: {}", text).into());
+
+                            // 👑 3. 手動でJSONに変換し、失敗理由を詳しく取得する
+                            match serde_json::from_str::<GetItemsRes>(&text) {
+                                Ok(res_data) => {
+                                    let items = res_data.items.into_iter()
+                                        .map(|item| format!("{} (x{})", item.item_name, item.quantity))
+                                        .collect();
+                                    dispatcher.dispatch(Action::FetchListSuccess { request_id, items });
+                                }
+                                Err(err) => {
+                                    // 👑 エラーの詳細を画面に出す
+                                    dispatcher.dispatch(Action::FetchListFailed { 
                                         request_id, 
-                                        items: vec!["ダミーりんご".into(), "ダミーみかん".into()] 
+                                        error: format!("パース失敗: {}", err) 
                                     });
-                                }, Duration::from_millis(500));
+                                }
                             }
                         }
                         Err(e) => dispatcher.dispatch(Action::FetchListFailed { request_id, error: e.to_string() }),
