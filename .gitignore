@@ -39,4 +39,4 @@ Thumbs.db
 # それらを記述するローカル用の設定ファイルが誤ってプッシュされるのを防ぎます。
 .env
 .env.local
-.env.*.local
+.env.*.local.env

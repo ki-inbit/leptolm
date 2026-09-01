@@ -1,0 +1,12 @@
+name = "moonbit-backend"
+main = "worker/src/index.js"
+compatibility_date = "2024-03-20"
+
+# WASI（Node.jsの機能）をCloudflare上で使えるようにするおまじない
+compatibility_flags = ["nodejs_compat"]
+
+# WASM ファイルをモジュールとして認識させるためのルール
+[[rules]]
+type = "CompiledWasm"
+globs = ["**/*.wasm"]
+fallbacks = []
