@@ -25,7 +25,7 @@ jobs:
       - name: 🛠️ 必須ツールの高速インストール
         uses: taiki-e/install-action@v2
         with:
-          tool: wasm-tools,cargo-component,wasm-bindgen-cli,wasm-pack
+          tool: wasm-tools,cargo-component,wasm-bindgen-cli,wasm-pack,wit-bindgen-cli
 
       - name: 🌙 MoonBit のインストール
         run: |
