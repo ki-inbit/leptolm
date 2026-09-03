@@ -28,7 +28,8 @@ fi
 # 👑 ここが最重要！ Rustビルド時に cloudflare フィーチャを有効化！
 CARGO_FLAGS="$CARGO_FLAGS --features cloudflare"
 
-cd /workspaces
+#cd /workspaces
+cd "$(dirname "$0")"
 rm -f *.wasm
 
 echo -e "${CYAN}🎨 既存のフロントエンドをビルド中...${NC}"

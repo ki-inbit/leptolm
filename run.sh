@@ -26,7 +26,8 @@ else
     MOON_OUT_DIR="debug"
 fi
 
-cd /workspaces
+#cd /workspaces
+cd "$(dirname "$0")"
 rm -f *.wasm
 
 echo -e "${CYAN}🎨 既存のフロントエンドをビルド中...${NC}"
