@@ -35,6 +35,12 @@ jobs:
       - name: ⚙️ jco のインストール
         run: npm install -g @bytecodealliance/jco
 
+      # 👇 ====== ここから追加 ====== 👇
+      - name: 📥 WASI アダプターの確実なダウンロード
+        run: |
+          curl -sLo wasi_snapshot_preview1.v.reactor.wasm https://github.com/bytecodealliance/wasmtime/releases/download/v15.0.0/wasi_snapshot_preview1.reactor.wasm
+      # 👆 ====== ここまで追加 ====== 👆
+
       - name: 🚀 プロジェクトのビルド
         run: |
           chmod +x ./run_worker.sh
