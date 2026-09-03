@@ -103,12 +103,22 @@ impl ElmApp for MyApp {
             Effect::AddItemEffect { request_id, item_name, quantity } => {
                 wasm_bindgen_futures::spawn_local(async move {
                     let req_body = AddItemReq { item_name, quantity };
+                    // 👑 1. リクエストをMessagePackのバイト列に変換
+                    let body_bytes = rmp_serde::to_vec(&req_body).unwrap_or_default();
+                    
                     let origin = web_sys::window().and_then(|w| w.location().origin().ok()).unwrap_or_else(|| "http://127.0.0.1:3000".to_string());
                     let url = format!("{}/api/add_item", origin.trim_end_matches('/'));
                     let client = reqwest::Client::new();
-                    match client.post(&url).json(&req_body).send().await {
+                    
+                    // 👑 2. .json() ではなく、ヘッダーを手動設定してバイト列(.body())を送信
+                    match client.post(&url)
+                        .header("Content-Type", "application/x-msgpack")
+                        .body(body_bytes)
+                        .send().await {
                         Ok(response) => {
-                            if let Ok(res_data) = response.json::<AddItemRes>().await {
+                            // 👑 3. レスポンスもバイト列として受け取り、MessagePackでパース
+                            let bytes = response.bytes().await.unwrap_or_default();
+                            if let Ok(res_data) = rmp_serde::from_slice::<AddItemRes>(&bytes) {
                                 dispatcher.dispatch(Action::AddItemSuccess { request_id, message: res_data.message });
                             } else {
                                 dispatcher.dispatch_error("APIレスポンスのパースに失敗しました！");
@@ -118,6 +128,7 @@ impl ElmApp for MyApp {
                     }
                 });
             }
+            
             Effect::FetchListEffect { request_id } => {
                 wasm_bindgen_futures::spawn_local(async move {
                     let origin = web_sys::window().and_then(|w| w.location().origin().ok()).unwrap_or_else(|| "http://127.0.0.1:3000".to_string());
@@ -126,27 +137,20 @@ impl ElmApp for MyApp {
                     
                     match client.get(&url).send().await {
                         Ok(response) => {
-                            // 👑 1. JSONではなく、一旦「生の文字列」として受け取る
-                            let text = response.text().await.unwrap_or_default();
+                            // 👑 1. テキストではなく「バイト列(bytes)」として受け取る
+                            let bytes = response.bytes().await.unwrap_or_default();
                             
-                            // 👑 2. ブラウザのコンソールに受信したデータを出力！
-                            web_sys::console::log_1(&format!("📦 受信した生データ: {}", text).into());
-
-                            // 👑 3. 手動でJSONに変換し、失敗理由を詳しく取得する
-                            match serde_json::from_str::<GetItemsRes>(&text) {
+                            // 👑 2. MessagePackとしてパース
+                            match rmp_serde::from_slice::<GetItemsRes>(&bytes) {
                                 Ok(res_data) => {
                                     let items = res_data.items.into_iter()
                                         .map(|item| format!("{} (x{})", item.item_name, item.quantity))
                                         .collect();
                                     dispatcher.dispatch(Action::FetchListSuccess { request_id, items });
                                 }
-                                Err(err) => {
-                                    // 👑 エラーの詳細を画面に出す
-                                    dispatcher.dispatch(Action::FetchListFailed { 
-                                        request_id, 
-                                        error: format!("パース失敗: {}", err) 
-                                    });
-                                }
+                                Err(err) => dispatcher.dispatch(Action::FetchListFailed { 
+                                    request_id, error: format!("パース失敗: {}", err) 
+                                }),
                             }
                         }
                         Err(e) => dispatcher.dispatch(Action::FetchListFailed { request_id, error: e.to_string() }),

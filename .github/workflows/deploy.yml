@@ -1,0 +1,47 @@
+name: Deploy to Cloudflare
+
+on:
+  push:
+    branches:
+      - main # mainブランチへのプッシュで自動実行
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 リポジトリのチェックアウト
+        uses: actions/checkout@v4
+
+      - name: 🟢 Node.js のセットアップ
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: 🦀 Rust のセットアップ
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown, wasm32-wasip1
+
+      - name: 🛠️ 必須ツールの高速インストール
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-tools,cargo-component,wasm-bindgen-cli
+
+      - name: 🌙 MoonBit のインストール
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          echo "$HOME/.moon/bin" >> $GITHUB_PATH
+
+      - name: ⚙️ jco のインストール
+        run: npm install -g @bytecodealliance/jco
+
+      - name: 🚀 プロジェクトのビルド
+        run: |
+          chmod +x ./run_worker.sh
+          ./run_worker.sh
+
+      - name: ☁️ Cloudflare へデプロイ
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

@@ -21,6 +21,7 @@ reqwest = { version = "0.12", features = ["json"] } # 👑 これを追記！
 web-sys = { version = "0.3", features = ["Window", "Location"] }
 leptolm-core = { path = "../leptolm-core" }
 serde_json.workspace = true
+rmp-serde = "1.3.1"
 
 [features]
 hydrate = ["leptos/hydrate"]

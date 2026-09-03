@@ -72,35 +72,31 @@ pub struct RawResponse {
     pub body: Vec<u8>,
 }
 
+// ... 前略 ...
 pub fn router_engine(route: LeptolmRoute, req_body_bytes: Vec<u8>) -> RawResponse {
     match route {
         LeptolmRoute::ApiAddItem => {
-            if let Ok(req_data) = serde_json::from_slice::<AddItemReq>(&req_body_bytes) {
-                let res_data = shared::process_add_item(&req_data);
-                RawResponse {
-                    status: 200,
-                    content_type: "application/json".into(),
-                    encoding: None,
-                    body: serde_json::to_vec(&res_data).unwrap_or_default(),
-                }
-            } else {
-                RawResponse {
-                    status: 400,
-                    content_type: "text/plain".into(),
-                    encoding: None,
-                    body: b"Invalid Request Body".to_vec(),
-                }
+            // 👑 1. JSONではなくMessagePackでバイト列から直接構造体に復元
+            let req: AddItemReq = rmp_serde::from_slice(&req_body_bytes)
+                .expect("Failed to deserialize MessagePack request");
+
+            let res_data = shared::process_add_item(&req);
+
+            RawResponse {
+                status: 200,
+                content_type: "application/x-msgpack".into(), // 👑 2. ヘッダー変更
+                encoding: None,
+                // 👑 3. 構造体をMessagePackのバイト列に変換
+                body: rmp_serde::to_vec(&res_data).unwrap_or_default(),
             }
         }
-
-        // 👑 追加: MoonBitから一覧をもらってJSONで返す
         LeptolmRoute::ApiGetItems => {
             let res_data = shared::get_items();
             RawResponse {
                 status: 200,
-                content_type: "application/json".into(),
+                content_type: "application/x-msgpack".into(), // 👑 変更
                 encoding: None,
-                body: serde_json::to_vec(&res_data).unwrap_or_default(),
+                body: rmp_serde::to_vec(&res_data).unwrap_or_default(), // 👑 変更
             }
         }
 
