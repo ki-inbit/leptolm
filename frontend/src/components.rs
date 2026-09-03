@@ -64,41 +64,55 @@ where
     }
 }
 
-// 👑 Unityを表示するための汎用コンポーネント (ここは変更なし)
+// 👑 Unityを表示するための汎用コンポーネント
 #[component]
 pub fn UnityPlayer() -> impl IntoView {
-    mview! {
-        div style="width: 960px; height: 600px; margin: 0 auto; background: #000;" {
-            
-            // 1. Unityが描画するためのキャンバス
-            canvas id="unity-canvas" style="width: 100%; height: 100%;" {}
+// 👑 インフラごとの拡張子切り替えロジック
+    let ext = if cfg!(feature = "cloudflare") {
+        ".unityweb"
+    } else {
+        ".unityweb"
+    };
+    
+    Effect::new(move |_| {
+        let code = format!(r#"
+            (function() {{
+                var canvas = document.querySelector('#unity-canvas');
+                if (!canvas) return;
 
-            // 2. Unityのローダースクリプトを読み込む（ファイル名は自分のものに変えてください）
-            script src="/unity/Build/build.loader.js" {}
+                if (window.unityInstance) return;
 
-            // 3. ローダーを使ってUnityを起動するスクリプト
-            script { "
-                // ページが読み込まれたら少し遅延させてUnityを起動
-                setTimeout(() => {
-                    var canvas = document.querySelector('#unity-canvas');
-                    var config = {
-                        dataUrl: '/unity/Build/build.data',
-                        frameworkUrl: '/unity/Build/build.framework.js',
-                        codeUrl: '/unity/Build/build.wasm',
+                var loaderScript = document.createElement('script');
+                loaderScript.src = '/unity/Build/build.loader.js';
+                loaderScript.onload = function() {{
+                    var config = {{
+                        dataUrl: '/unity/Build/build.data{ext}',
+                        frameworkUrl: '/unity/Build/build.framework.js{ext}',
+                        codeUrl: '/unity/Build/build.wasm{ext}',
                         streamingAssetsUrl: 'StreamingAssets',
                         companyName: 'DefaultCompany',
                         productName: 'My Unity Game',
                         productVersion: '1.0',
-                    };
+                    }};
                     createUnityInstance(canvas, config)
-                        .then((unityInstance) => {
+                        .then(function(instance) {{
+                            window.unityInstance = instance;
                             console.log('🎉 Unity起動成功！');
-                        })
-                        .catch((message) => {
-                            alert('Unityの読み込みに失敗しました: ' + message);
-                        });
-                }, 500); // ローダーJSの読み込み待ちのため少し待つ
-            " }
+                        }})
+                        .catch(function(message) {{
+                            console.error('Unity Launch Error:', message);
+                        }});
+                }};
+                document.body.appendChild(loaderScript);
+            }})();
+        "#);
+
+        let _ = js_sys::eval(&code);
+    });
+
+    mview! {
+        div style="width: 960px; height: 600px; margin: 0 auto; background: #000;" {
+            canvas id="unity-canvas" style="width: 100%; height: 100%;" {}
         }
     }
 }

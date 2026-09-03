@@ -39,12 +39,22 @@ cd "$(dirname "$0")"
 rm -f *.wasm
 
 echo -e "${CYAN}🎨 フロントエンドをビルド中...${NC}"
-if command -v trunk &> /dev/null; then
-    trunk build frontend/index.html --release --dist public
+
+# 👑 フロントエンド用のフラグをターゲットに合わせて切り替え
+if [ "$TARGET" = "cloudflare" ]; then
+    FRONTEND_FEATURES="hydrate,cloudflare"
 else
+    FRONTEND_FEATURES="hydrate"
+fi
+
+if command -v trunk &> /dev/null; then
+    # Trunkの場合
+    trunk build frontend/index.html --release --dist public --features "$FRONTEND_FEATURES"
+else
+    # wasm-packの場合
     mkdir -p public/pkg
     cd frontend
-    wasm-pack build --target web --out-name frontend --out-dir ../public/pkg -- --features hydrate
+    wasm-pack build --target web --out-name frontend --out-dir ../public/pkg -- --features "$FRONTEND_FEATURES"
     cd ..
     [ -f frontend/index.html ] && cp frontend/index.html public/
 fi

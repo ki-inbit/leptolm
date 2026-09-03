@@ -144,6 +144,9 @@ pub fn serve_static_file(base_path: &str) -> RawResponse {
         (base_path.to_string(), is_br)
     } else if Path::new(&format!("{}.br", base_path)).exists() {
         (format!("{}.br", base_path), true)
+    } else if Path::new(&format!("{}.unityweb", base_path)).exists() {
+        // 👑 追加: .unityweb を見つけた場合！ (Unity側で解凍するので is_br は false でOK)
+        (format!("{}.unityweb", base_path), false)
     } else {
         return RawResponse {
             status: 404,
@@ -173,7 +176,10 @@ pub fn serve_static_file(base_path: &str) -> RawResponse {
 }
 
 pub fn get_mime_type(path: &str) -> String {
+    // 👑 修正: .br と .unityweb の両方を取り除いて、元の拡張子（.data や .wasm）を取り出す
     let clean_path = path.strip_suffix(".br").unwrap_or(path);
+    let clean_path = clean_path.strip_suffix(".unityweb").unwrap_or(clean_path);
+
     let ext = Path::new(clean_path)
         .extension()
         .and_then(|s| s.to_str())
