@@ -22,6 +22,9 @@ jobs:
         with:
           targets: wasm32-unknown-unknown, wasm32-wasip1
 
+      - name: ⚡ Rust キャッシュの有効化
+        uses: Swatinem/rust-cache@v2
+
       - name: 🛠️ 必須ツールの高速インストール
         uses: taiki-e/install-action@v2
         with:
@@ -35,16 +38,10 @@ jobs:
       - name: ⚙️ jco のインストール
         run: npm install -g @bytecodealliance/jco
 
-      # 👇 ====== ここから追加 ====== 👇
-      - name: 📥 WASI アダプターの確実なダウンロード
-        run: |
-          curl -sLo wasi_snapshot_preview1.v.reactor.wasm https://github.com/bytecodealliance/wasmtime/releases/download/v15.0.0/wasi_snapshot_preview1.reactor.wasm
-      # 👆 ====== ここまで追加 ====== 👆
-
       - name: 🚀 プロジェクトのビルド
         run: |
-          chmod +x ./run_worker.sh
-          ./run_worker.sh
+          chmod +x ./build.sh
+          ./build.sh cloudflare release
 
       - name: ☁️ Cloudflare へデプロイ
         uses: cloudflare/wrangler-action@v3

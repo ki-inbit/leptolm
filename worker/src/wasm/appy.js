@@ -22,9 +22,7 @@ const fetch = async (url) => ({
     url: url.toString(),
     arrayBuffer: async () => ({ isMockBuffer: true, url: url.toString() })
 });
-
 const WebAssembly = Object.create(globalThis.WebAssembly);
-
 WebAssembly.compileStreaming = async (resp) => {
     const url = (await resp).url;
     const filename = url.split('/').pop();

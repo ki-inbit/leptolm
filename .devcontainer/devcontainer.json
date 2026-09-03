@@ -13,5 +13,6 @@
             ]
         }
     },
-    "remoteUser": "vscode"
+    "remoteUser": "vscode",
+    "postCreateCommand": "npm install -g @bytecodealliance/jco"
 }
