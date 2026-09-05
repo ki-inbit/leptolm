@@ -198,3 +198,30 @@ pub fn UnityPlayer() -> impl IntoView {
         }
     }
 }
+
+// ==========================================
+// 👑 3. スマホ用: 画面外タップでキーボードを閉じる透明なコンポーネント
+// ==========================================
+#[component]
+pub fn MobileKeyboardCloser() -> impl IntoView {
+    Effect::new(move |_| {
+        let code = r#"
+            // 👑 複数画面を行き来しても、イベントリスナーが重複登録されないための安全装置
+            if (!window.__keyboardCloserInitialized) {
+                document.addEventListener('pointerdown', function(e) {
+                    if (document.activeElement && document.activeElement.tagName === 'INPUT') {
+                        if (e.target.tagName !== 'INPUT') {
+                            document.activeElement.blur();
+                        }
+                    }
+                }, { passive: true });
+                
+                window.__keyboardCloserInitialized = true;
+            }
+        "#;
+        let _ = js_sys::eval(code);
+    });
+
+    // 👑 画面上には何も描画しない（透明）
+    ()
+}

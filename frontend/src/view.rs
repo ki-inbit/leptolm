@@ -7,7 +7,7 @@ use leptolm_core::Dispatcher;
 use crate::model::Action;
 use crate::update::MyApp;
 use crate::model::AppStateStoreFields;
-use crate::components::{TextInputForm, TextAndNumberInputForm, UnityPlayer};
+use crate::components::{TextInputForm, TextAndNumberInputForm, UnityPlayer, MobileKeyboardCloser};
 
 #[component]
 pub fn App() -> impl IntoView {
@@ -15,7 +15,6 @@ pub fn App() -> impl IntoView {
     let dispatcher = Dispatcher::<MyApp>::new(store.clone());
 
     let is_open = RwSignal::new(false);
-    //let draft_name = RwSignal::new(String::new());
 
     provide_context(dispatcher);
     provide_meta_context();
@@ -23,6 +22,7 @@ pub fn App() -> impl IntoView {
     mview! {
         // 👑 画面端にピッタリくっつかないよう最大幅を設定し、中央揃え
         div style="font-family: sans-serif; padding: 15px; max-width: 1000px; margin: 0 auto; box-sizing: border-box;" {
+            {view! { <MobileKeyboardCloser/> }}
             h1 style="font-size: 1.5rem; word-break: keep-all;" { "コア分離版 ハイブリッドアーキテクチャ" }
 
             {move || store.global_error().get().map(|err| mview! {
