@@ -102,7 +102,8 @@ pub fn App() -> impl IntoView {
                 })}
             }
 
-            div style="margin-top: 20px; border: 1px solid #ccc; border-radius: 4px; overflow: hidden;" {
+            div style="margin-top: 20px; background: #d3fae8; color: #27962d; border: 1px solid #ccc; border-radius: 4px; overflow: hidden;" {
+                h3 style="margin-top: 0; padding: 15px;" { "🕹️ゲームコーナー" }
                 {view! { 
                     <UnityPlayer/>
                 }}
