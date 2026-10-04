@@ -39,23 +39,23 @@ extern "wasm" fn mbt_ffi_free(position : Int) =
 #|(func (param i32) local.get 0 call $moonbit.decref)
 
 #doc(hidden)
-pub fn wasmExportGetItems() -> Int {
-      @models.wasmExportGetItems()
-}
-
-#doc(hidden)
-pub fn wasmExportGetItemsPostReturn(p0 : Int) -> Unit {
-      @models.wasmExportGetItemsPostReturn(p0)
-}
-
-#doc(hidden)
 pub fn wasmExportProcessAddItem(p0 : Int, p1 : Int, p2 : Int) -> Int {
       @models.wasmExportProcessAddItem(p0, p1, p2)
 }
 
 #doc(hidden)
+pub fn wasmExportGetItems() -> Int {
+      @models.wasmExportGetItems()
+}
+
+#doc(hidden)
 pub fn wasmExportProcessAddItemPostReturn(p0 : Int) -> Unit {
       @models.wasmExportProcessAddItemPostReturn(p0)
+}
+
+#doc(hidden)
+pub fn wasmExportGetItemsPostReturn(p0 : Int) -> Unit {
+      @models.wasmExportGetItemsPostReturn(p0)
 }
 
 fn main {}

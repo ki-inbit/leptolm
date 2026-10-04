@@ -245,6 +245,9 @@ bypass("rscTableGet", "{ rep: arguments[0] || 0, 0: 0 }");
 bypass("resourceTransferOwn", "arguments[0] || 0");
 bypass("resourceTransferBorrow", "arguments[0] || 0");
 
+// 👑 追加: Cloudflare 本番環境での「Wasm code generation disallowed」エラーを回避
+safeCode = safeCode.replace(/new WebAssembly\.Module/g, "Object");
+
 fs.writeFileSync(path, safeCode);
 EOF
 
