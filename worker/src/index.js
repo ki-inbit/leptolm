@@ -1,51 +1,123 @@
 import * as wasmApp from "./wasm/appy.js";
+import { setCache } from "./wasm/d1-replay.js";
 
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
-    // 👑 1. Unity 用の .br ファイル手動フォールバック
     if (url.pathname.startsWith("/unity/Build/") && !url.pathname.endsWith(".br")) {
         const brUrl = new URL(url.pathname + ".br", request.url);
-        
-        // 💡 修正: request.headers を渡さないことで、内部サーバーの誤作動を防ぐ
         const brRes = await fetch(brUrl.toString());
 
         if (brRes.ok) {
             const buffer = await brRes.arrayBuffer();
             const headers = new Headers();
-
-            // 必須: 正確なサイズを伝える
             headers.set("content-length", buffer.byteLength.toString());
-            // 必須: ブラウザに解凍させる
             headers.set("content-encoding", "br");
-            
-            // 👑 必須魔法: Cloudflare に「中身を絶対に書き換えるな！」と命令する
             headers.set("cache-control", "no-transform");
-
             if (url.pathname.endsWith(".js")) headers.set("content-type", "application/javascript");
             else if (url.pathname.endsWith(".wasm")) headers.set("content-type", "application/wasm");
             else if (url.pathname.endsWith(".data")) headers.set("content-type", "application/octet-stream");
-
             return new Response(buffer, { status: 200, headers });
         }
     }
 
-    // 👑 2. WASM (Rust/MoonBit/Leptos) ロジック
-    try {
-      const method = request.method;
-      const path = url.pathname + url.search;
-      const body = new Uint8Array(await request.arrayBuffer());
+    const method = request.method;
+    const path = url.pathname + url.search;
+    const body = new Uint8Array(await request.arrayBuffer());
 
-      const [status, contentType, encoding, resBody] = wasmApp.handleCloudflare(method, path, body);
+    // 💡 追加: 過去のキャッシュが残らないように必ずリセットする
+    setCache("");
 
-      const headers = new Headers({ "content-type": contentType });
-      if (encoding) headers.set("content-encoding", encoding);
+    let maxRetries = 10;
+    let attempt = 0;
 
-      return new Response(resBody, { status, headers });
-    } catch (e) {
-      console.error("WASM Error:", e);
-      return new Response("WASM Internal Error:\n" + e.stack, { status: 500 });
+    while (attempt < maxRetries) {
+      let capturedPanic = "";
+      const originalError = console.error;
+      
+      // 👑 Wasm (Rust) の Panic 出力を傍受する
+      console.error = (...args) => {
+        const msg = args.join(" ");
+        if (msg.includes("DB_SUSPEND:")) capturedPanic = msg;
+        originalError.apply(console, args);
+      };
+
+try {
+        const [status, contentType, encoding, resBody] = wasmApp.handleCloudflare(method, path, body);
+        console.error = originalError; // 元に戻す
+
+        // 💡 追加＆修正ポイント：WASMが例外を投げずにエラー出力だけで終了した場合を拾う
+        if (capturedPanic) {
+            throw new Error("SuspendTrigger"); // 強制的に下の catch(e) へ飛ばす！
+        }
+
+        if (resBody) {
+            const resString = new TextDecoder().decode(resBody);
+            if (resString.includes("DB_SUSPEND:")) {
+                capturedPanic = resString;
+                throw new Error("SuspendTrigger");
+            }else {
+                // 💡 ===== ここを追加 =====
+                console.log("=== 🚀 FINAL WASM RESPONSE ===");
+                console.log(resString);
+                // 💡 =====================
+            }
+        }
+        
+        const headers = new Headers({ "content-type": contentType });
+        if (encoding) headers.set("content-encoding", encoding);
+        return new Response(resBody, { status, headers });
+
+      } catch (e) {
+        console.error = originalError; // 元に戻す
+
+        // 👑 追加: jcoがエラーをJSの例外(TypeError等)として投げた場合をキャッチ
+        if (e && e.message && e.message.includes("DB_SUSPEND:")) {
+            capturedPanic = e.message;
+        }
+
+        if (capturedPanic) {
+          console.log("[Replay] Wasm suspended for DB query (Attempt " + (attempt + 1) + ")");
+          
+          try {
+            // Rustの出力からJSON部分 { ... } だけを安全に抽出
+            const jsonMatch = capturedPanic.match(/\{.*\}/);
+            if (!jsonMatch) throw new Error("Invalid payload format");
+            
+            const payload = JSON.parse(jsonMatch[0]);
+            
+            let stmt = env.DB.prepare(payload.query);
+            if (payload.params && payload.params.length > 0) {
+                stmt = stmt.bind(...payload.params);
+            }
+            const dbResult = await stmt.all();
+
+            // 結果をキャッシュにセットしてループを継続（リプレイ）
+            const jsonResult = JSON.stringify(dbResult.results);
+            // 💡 ===== ここに追加 =====
+            console.log("=== 🔍 D1 QUERY RESULT ===");
+            console.log("SQL:", payload.query);
+            console.log("Params:", payload.params);
+            console.log("Data:", jsonResult);
+            console.log("==========================");
+            // 💡 =====================
+            setCache(jsonResult);
+
+            attempt++;
+            continue;
+
+          } catch (dbError) {
+            console.error("D1 Query Error:", dbError);
+            return new Response("Database Query Error:\n" + String(dbError), { status: 500 });
+          }
+        }
+
+        console.error("WASM Internal Error:", e);
+        return new Response("WASM Internal Error:\n" + e.stack, { status: 500 });
+      }
     }
+
+    return new Response("Max replay retries exceeded", { status: 508 });
   }
 };

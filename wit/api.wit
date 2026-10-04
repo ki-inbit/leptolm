@@ -12,7 +12,6 @@ interface models {
         server-time: string,
     }
 
-// 👑 1. 新しい型（アイテムの構造体とレスポンス）を追加
     record item {
         id: string,
         item-name: string,
@@ -20,33 +19,61 @@ interface models {
     }
 
     record get-items-res {
-        items: list<item>,
+        // 👑 HTMLタグとして消えないようにスペースを入れています
+        items: list< item >,
     }
     
-    // 👑 2. アイテム一覧取得の関数を定義
     get-items: func() -> get-items-res;
 
-    // 👑 関数をインターフェースの中に定義します
     process-add-item: func(req: add-item-req) -> add-item-res;
 }
 
-// 👑 追加: shared クレート専用の世界（リンカーのバグ回避用）
 world shared-types {
     import models;
 }
 
-// 👑 Rust(ルーター)用の世界：APIを「呼び出す（import）」側
 world router {
     import models;
 }
 
-// 👑 MoonBit(バックエンド)用の世界：APIを「提供する（export）」側
-world backend {
-    export models;
-}
-
-// 👑 Cloudflare専用の世界を新設！ WASIの呪縛を完全に断ち切ります
 world cloudflare-router {
     import models;
-    export handle-cloudflare: func(method: string, path: string, body: list<u8>) -> tuple<u16, string, option<string>, list<u8>>;
+    export handle-cloudflare: func(method: string, path: string, body: list< u8 >) -> tuple< u16, string, option< string >, list< u8 > >;
+}
+
+// 👑 1. ファサードとRustドライバ間の通信インターフェース (SPI)
+interface db-spi {
+    // 💡 wasi:sql の型をインポート
+    use wasi:sql/types.{row};
+
+    // 💡 戻り値を JSON (string) から list に変更
+    query: func(sql: string, params: list< string >) -> result< list< row >, string >;
+    exec: func(sql: string, params: list< string >) -> result< u32, string >;
+}
+
+// 👑 2. D1(Cloudflare Workers)特有のリプレイ用インターフェース（分離）
+interface d1-replay {
+    get-cache: func() -> string;
+}
+
+world backend {
+    export models;
+    import wasi:sql/types;
+    import wasi:sql/readwrite;
+}
+
+world db-facade {
+    export wasi:sql/types;
+    export wasi:sql/readwrite;
+    import db-spi;
+}
+
+world driver-d1 {
+    export db-spi;
+    // 古い定義を消して d1-replay をインポート
+    import d1-replay; 
+}
+
+world driver-local {
+    export db-spi;
 }

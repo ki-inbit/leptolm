@@ -1,0 +1,5 @@
+package wasi:sql;
+
+world imports {
+	import readwrite;
+}

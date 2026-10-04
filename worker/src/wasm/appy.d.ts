@@ -1,4 +1,5 @@
 // world root:component/root
+export type * as LeptolmApiD1Replay from './interfaces/leptolm-api-d1-replay.js'; // import leptolm:api/d1-replay
 export type * as WasiCliEnvironment0212 from './interfaces/wasi-cli-environment.js'; // import wasi:cli/environment@0.2.12
 export type * as WasiCliExit0212 from './interfaces/wasi-cli-exit.js'; // import wasi:cli/exit@0.2.12
 export type * as WasiCliStderr0212 from './interfaces/wasi-cli-stderr.js'; // import wasi:cli/stderr@0.2.12
@@ -15,4 +16,5 @@ export type * as WasiFilesystemTypes0212 from './interfaces/wasi-filesystem-type
 export type * as WasiIoError0212 from './interfaces/wasi-io-error.js'; // import wasi:io/error@0.2.12
 export type * as WasiIoStreams0212 from './interfaces/wasi-io-streams.js'; // import wasi:io/streams@0.2.12
 export type * as WasiRandomRandom0212 from './interfaces/wasi-random-random.js'; // import wasi:random/random@0.2.12
+export type * as WasiSqlTypes from './interfaces/wasi-sql-types.js'; // import wasi:sql/types
 export function handleCloudflare(method: string, path: string, body: Uint8Array): [number, string, string | undefined, Uint8Array];

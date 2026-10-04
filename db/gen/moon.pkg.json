@@ -1,0 +1,33 @@
+{
+  "warn-list": "-44",
+  "import": [
+    {
+      "path": "leptolm/api/gen/interface/wasi/sql/readwrite",
+      "alias": "readwrite"
+    },
+    {
+      "path": "leptolm/api/gen/interface/wasi/sql/types",
+      "alias": "types"
+    }
+  ],
+  "link": {
+    "wasm": {
+      "export-memory-name": "memory",
+      "heap-start-address": 16,
+      "exports": [
+        "mbt_ffi_cabi_realloc:cabi_realloc",
+        "wasmExportConnectionDtor:wasi:sql/types#[dtor]connection",
+        "wasmExportError_Dtor:wasi:sql/types#[dtor]error",
+        "wasmExportExec:wasi:sql/readwrite#exec",
+        "wasmExportMethodErrorTrace:wasi:sql/types#[method]error.trace",
+        "wasmExportMethodErrorTracePostReturn:cabi_post_wasi:sql/types#[method]error.trace",
+        "wasmExportQuery:wasi:sql/readwrite#query",
+        "wasmExportQueryPostReturn:cabi_post_wasi:sql/readwrite#query",
+        "wasmExportStatementDtor:wasi:sql/types#[dtor]statement",
+        "wasmExportStaticConnectionOpen:wasi:sql/types#[static]connection.open",
+        "wasmExportStaticStatementPrepare:wasi:sql/types#[static]statement.prepare"
+      ]
+    }
+  },
+  "is-main": true
+}

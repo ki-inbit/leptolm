@@ -10,3 +10,8 @@ directory = "public"
 type = "CompiledWasm"
 globs = ["**/*.wasm"]
 fallbacks = []
+
+[[d1_databases]]
+binding = "DB"
+database_name = "my-db"
+database_id = "c5a3dfa9-7179-4165-bf7c-f126ad2f75bc"

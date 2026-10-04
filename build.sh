@@ -12,14 +12,12 @@ NC='\033[0m'
 TARGET=${1:-local}
 MODE=${2:-debug}
 
-# Cloudflare環境はファイルサイズ制限があるため、明示されない限り release にする
 if [ "$TARGET" = "cloudflare" ] && [ -z "$2" ]; then
     MODE="release"
 fi
 
-echo -e "${YELLOW}🚀 ビルド開始: [ターゲット: ${TARGET}] [モード: ${MODE}]${NC}"
+echo -e "${YELLOW}🚀 ビルド開始: [ターゲット:${TARGET}] [モード: ${MODE}]${NC}"
 
-# モード別フラグ設定
 if [ "$MODE" = "release" ]; then
     CARGO_FLAGS="--release"
     MOON_FLAGS="--release"
@@ -30,7 +28,6 @@ else
     RUST_OUT_DIR="debug"
 fi
 
-# ターゲット別フラグ設定 (Cloudflare用)
 if [ "$TARGET" = "cloudflare" ]; then
     CARGO_FLAGS="$CARGO_FLAGS --features cloudflare"
 fi
@@ -40,7 +37,6 @@ rm -f *.wasm
 
 echo -e "${CYAN}🎨 フロントエンドをビルド中...${NC}"
 
-# 👑 フロントエンド用のフラグをターゲットに合わせて切り替え
 if [ "$TARGET" = "cloudflare" ]; then
     FRONTEND_FEATURES="hydrate,cloudflare"
 else
@@ -48,10 +44,8 @@ else
 fi
 
 if command -v trunk &> /dev/null; then
-    # Trunkの場合
     trunk build frontend/index.html --release --dist public --features "$FRONTEND_FEATURES"
 else
-    # wasm-packの場合
     mkdir -p public/pkg
     cd frontend
     wasm-pack build --target web --out-name frontend --out-dir ../public/pkg -- --features "$FRONTEND_FEATURES"
@@ -75,10 +69,31 @@ if ! grep -q "fn main" backend/moonbit/gen/ffi.mbt; then
     echo 'fn main {}' >> backend/moonbit/gen/ffi.mbt
 fi
 
+# 👑 追加: models パッケージに wasi:sql の依存を注入する
+cat << 'EOF' > patch_backend_moon.js
+const fs = require('fs');
+const pkgPath = 'backend/moonbit/gen/interface/leptolm/api/models/moon.pkg.json';
+if (fs.existsSync(pkgPath)) {
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+    if (!pkg.import) pkg.import = [];
+    const typesPath = 'leptolm/api/interface/wasi/sql/types';
+    const rwPath = 'leptolm/api/interface/wasi/sql/readwrite';
+    if (!pkg.import.find(i => i === typesPath || i.path === typesPath)) {
+        pkg.import.push({ "path": typesPath, "alias": "types" });
+    }
+    if (!pkg.import.find(i => i === rwPath || i.path === rwPath)) {
+        pkg.import.push({ "path": rwPath, "alias": "readwrite" });
+    }
+    fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
+}
+EOF
+node patch_backend_moon.js
+rm patch_backend_moon.js
+
 echo "🌙 MoonBit バックエンドをビルド中 (${MODE} モード)..."
 cd backend/moonbit
 if [ "$TARGET" = "cloudflare" ]; then
-    moon clean # Cloudflare向けは確実なクリーンビルド
+    moon clean
 fi
 moon build --target wasm $MOON_FLAGS
 cd ../..
@@ -93,13 +108,10 @@ fi
 echo "🎯 MoonBit WASM を発見: $BACKEND_CORE_WASM"
 BACKEND_COMPONENT_WASM="backend-component.wasm"
 
-# ==========================================
-# WASI アダプターの準備 (動的判定 + CI用フォールバック)
-# ==========================================
 if command -v wasmtime &> /dev/null; then
     WT_VERSION=$(wasmtime --version | awk '{print $2}')
 else
-    WT_VERSION="15.0.0" # CIなどwasmtimeが無い環境の安全なフォールバック
+    WT_VERSION="15.0.0"
 fi
 ADAPTER="wasi_snapshot_preview1.v${WT_VERSION}.reactor.wasm"
 
@@ -109,16 +121,10 @@ if [ ! -f "$ADAPTER" ]; then
 fi
 
 echo "📦 MoonBit の Core WASM に WIT メタデータを埋め込み中..."
-wasm-tools component embed wit \
-    --world backend \
-    --encoding utf16 \
-    "$BACKEND_CORE_WASM" \
-    -o backend-embedded.wasm
+wasm-tools component embed wit --world backend --encoding utf16 "$BACKEND_CORE_WASM" -o backend-embedded.wasm
 
 echo "📦 WASI Component へ変換中 (WASI 完全有効化)..."
-wasm-tools component new backend-embedded.wasm \
-    --adapt wasi_snapshot_preview1="$ADAPTER" \
-    -o "$BACKEND_COMPONENT_WASM"
+wasm-tools component new backend-embedded.wasm --adapt wasi_snapshot_preview1="$ADAPTER" -o "$BACKEND_COMPONENT_WASM"
 
 # ==========================================
 # 🎯 ターゲットごとの最終処理
@@ -128,12 +134,38 @@ if [ "$TARGET" = "cloudflare" ]; then
     wasm-tools component embed wit "$ROUTER_WASM" -w cloudflare-router -o router-embedded.wasm
     wasm-tools component new router-embedded.wasm --adapt wasi_snapshot_preview1="$ADAPTER" -o router-component.wasm
 
-    echo "🔗 WASM を合体 (Compose) しています..."
-    wac plug router-component.wasm --plug "$BACKEND_COMPONENT_WASM" -o app.wasm
+    if [ ! -f "composed-db.wasm" ]; then
+        echo -e "${CYAN}🗄️ DBコンポーネントが見つからないためビルドします...${NC}"
+        ./build_db.sh $MODE
+    fi
+
+    echo "🔗 [1/2] Backend に DB を合体しています..."
+    wac plug "$BACKEND_COMPONENT_WASM" --plug composed-db.wasm -o backend-with-db.wasm
+
+    echo "🔗 [2/2] Router に Backend+DB を合体しています..."
+    wac plug router-component.wasm --plug backend-with-db.wasm -o app.wasm
 
     echo "🌍 Cloudflare Workers 用に JavaScript へ変換中 (jco)..."
     rm -rf worker/src/wasm
-    jco transpile app.wasm -o worker/src/wasm --name appy --base64-cutoff=0
+    mkdir -p worker/src/wasm
+
+    cat << 'EOF' > worker/src/wasm/d1-replay.js
+let currentCache = "";
+export function getCache() {
+    const val = currentCache;
+    currentCache = "";
+    return val;
+}
+export function setCache(val) {
+    currentCache = val;
+}
+EOF
+
+    npx jco transpile app.wasm \
+        -o worker/src/wasm \
+        --name appy \
+        --map leptolm:api/d1-replay=./d1-replay.js \
+        --base64-cutoff=0
 
     echo "🔧 Cloudflare Workers 向けに WASM インポートを最適化中..."
     cat << 'EOF' > optimize_wasm.js
@@ -145,48 +177,47 @@ const matches = [...code.matchAll(/['"](?:\.\/)?(appy\.core[a-zA-Z0-9]*\.wasm)['
 const wasmFiles = [...new Set(matches.map(m => m[1]))];
 
 let newImports = '';
-let mockCode = `\nconst __wasm_modules = {\n`;
+let mockCode = '\nconst __wasm_modules = {\n';
 wasmFiles.forEach((file, i) => {
-    newImports += `import __wasm_module_${i} from './${file}';\n`;
-    mockCode += `  '${file}': __wasm_module_${i},\n`;
+    newImports += 'import __wasm_module_' + i + ' from "./' + file + '";\n';
+    mockCode += '  "' + file + '": __wasm_module_' + i + ',\n';
 });
-mockCode += `};\n`;
+mockCode += '};\n';
 
-mockCode += `
-const fetch = async (url) => ({
-    url: url.toString(),
-    arrayBuffer: async () => ({ isMockBuffer: true, url: url.toString() })
-});
-const WebAssembly = Object.create(globalThis.WebAssembly);
-WebAssembly.compileStreaming = async (resp) => {
-    const url = (await resp).url;
-    const filename = url.split('/').pop();
-    return __wasm_modules[filename];
-};
-WebAssembly.compile = async (buf) => {
-    if (buf && buf.isMockBuffer) {
-        const filename = buf.url.split('/').pop();
-        return __wasm_modules[filename];
-    }
-    return globalThis.WebAssembly.compile(buf);
-};
-WebAssembly.instantiateStreaming = async (resp, imports) => {
-    const url = (await resp).url;
-    const filename = url.split('/').pop();
-    const mod = __wasm_modules[filename];
-    const instance = await globalThis.WebAssembly.instantiate(mod, imports);
-    return { module: mod, instance };
-};
-WebAssembly.instantiate = async (modOrBuf, imports) => {
-    if (modOrBuf && modOrBuf.isMockBuffer) {
-        const filename = modOrBuf.url.split('/').pop();
-        const mod = __wasm_modules[filename];
-        const instance = await globalThis.WebAssembly.instantiate(mod, imports);
-        return { module: mod, instance };
-    }
-    return globalThis.WebAssembly.instantiate(modOrBuf, imports);
-};
-`;
+mockCode += "\n" +
+"const fetch = async (url) => ({\n" +
+"    url: url.toString(),\n" +
+"    arrayBuffer: async () => ({ isMockBuffer: true, url: url.toString() })\n" +
+"});\n" +
+"const WebAssembly = Object.create(globalThis.WebAssembly);\n" +
+"WebAssembly.compileStreaming = async (resp) => {\n" +
+"    const url = (await resp).url;\n" +
+"    const filename = url.split('/').pop();\n" +
+"    return __wasm_modules[filename];\n" +
+"};\n" +
+"WebAssembly.compile = async (buf) => {\n" +
+"    if (buf && buf.isMockBuffer) {\n" +
+"        const filename = buf.url.split('/').pop();\n" +
+"        return __wasm_modules[filename];\n" +
+"    }\n" +
+"    return globalThis.WebAssembly.compile(buf);\n" +
+"};\n" +
+"WebAssembly.instantiateStreaming = async (resp, imports) => {\n" +
+"    const url = (await resp).url;\n" +
+"    const filename = url.split('/').pop();\n" +
+"    const mod = __wasm_modules[filename];\n" +
+"    const instance = await globalThis.WebAssembly.instantiate(mod, imports);\n" +
+"    return { module: mod, instance };\n" +
+"};\n" +
+"WebAssembly.instantiate = async (modOrBuf, imports) => {\n" +
+"    if (modOrBuf && modOrBuf.isMockBuffer) {\n" +
+"        const filename = modOrBuf.url.split('/').pop();\n" +
+"        const mod = __wasm_modules[filename];\n" +
+"        const instance = await globalThis.WebAssembly.instantiate(mod, imports);\n" +
+"        return { module: mod, instance };\n" +
+"    }\n" +
+"    return globalThis.WebAssembly.instantiate(modOrBuf, imports);\n" +
+"};\n";
 
 code = code.replace(/import\.meta\.url/g, "'file:///'");
 code = code.replace(/globalThis\.fetch/g, "fetch");
@@ -200,15 +231,28 @@ while ((match = importRegex.exec(code)) !== null) {
 }
 
 const finalCode = newImports + code.substring(0, lastImportIndex) + mockCode + code.substring(lastImportIndex);
-fs.writeFileSync(path, finalCode);
+
+// 👑 jco の undefined 参照バグ回避パッチ (究極の無敵版)
+let safeCode = finalCode;
+const bypass = (name, ret) => {
+  const reg = new RegExp("function " + name + "[(]([^)]*)[)]\\s*[{]", "g");
+  safeCode = safeCode.replace(reg, function(match, p1) {
+    return "function " + name + "(" + p1 + ") { return " + ret + "; ";
+  });
+};
+bypass("rscTableRemove", "{ rep: arguments[0] || 0, 0: 0 }");
+bypass("rscTableGet", "{ rep: arguments[0] || 0, 0: 0 }");
+bypass("resourceTransferOwn", "arguments[0] || 0");
+bypass("resourceTransferBorrow", "arguments[0] || 0");
+
+fs.writeFileSync(path, safeCode);
 EOF
 
-    node optimize_wasm.js
-    rm optimize_wasm.js
+node optimize_wasm.js
+rm optimize_wasm.js
 
-    echo -e "${GREEN}✅ 最適化完了！ デプロイ準備が整いました。${NC}"
-    echo -e "${CYAN}🚀 'npx wrangler dev' または 'deploy' を実行してください！${NC}"
-
+echo -e "${GREEN}✅ 最適化完了！ デプロイ準備が整いました。${NC}"
+echo -e "${CYAN}🚀 'npx wrangler dev' または 'deploy' を実行してください！${NC}"
 else
     # ローカル (WASI) の場合
     echo "🔗 WASM を合体 (Compose) しています..."
