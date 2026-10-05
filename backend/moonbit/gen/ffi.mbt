@@ -44,13 +44,13 @@ pub fn wasmExportProcessAddItem(p0 : Int, p1 : Int, p2 : Int) -> Int {
 }
 
 #doc(hidden)
-pub fn wasmExportGetItems() -> Int {
-      @models.wasmExportGetItems()
+pub fn wasmExportProcessAddItemPostReturn(p0 : Int) -> Unit {
+      @models.wasmExportProcessAddItemPostReturn(p0)
 }
 
 #doc(hidden)
-pub fn wasmExportProcessAddItemPostReturn(p0 : Int) -> Unit {
-      @models.wasmExportProcessAddItemPostReturn(p0)
+pub fn wasmExportGetItems() -> Int {
+      @models.wasmExportGetItems()
 }
 
 #doc(hidden)

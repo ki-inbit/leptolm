@@ -16474,9 +16474,9 @@ const $init = (() => {
       actual: {
         '0': exports6.adapter0,
         '1': exports6.adapter1,
-        '2': exports5['wasi:sql/types#[dtor]statement'],
-        '3': exports5['wasi:sql/types#[dtor]connection'],
-        '4': exports5['wasi:sql/types#[dtor]error'],
+        '2': exports5['wasi:sql/types#[dtor]connection'],
+        '3': exports5['wasi:sql/types#[dtor]error'],
+        '4': exports5['wasi:sql/types#[dtor]statement'],
       },
       shim: {
         $imports: exports4.$imports,

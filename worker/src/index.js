@@ -1,5 +1,5 @@
 import * as wasmApp from "./wasm/appy.js";
-import { setCache } from "./wasm/d1-replay.js";
+import { pushCache, resetCursor, clearCache } from './wasm/d1-replay.js';
 
 export default {
   async fetch(request, env, ctx) {
@@ -26,13 +26,16 @@ export default {
     const path = url.pathname + url.search;
     const body = new Uint8Array(await request.arrayBuffer());
 
-    // 💡 追加: 過去のキャッシュが残らないように必ずリセットする
-    setCache("");
+    // 💡 1. リクエストごとにキャッシュ履歴とカーソルを完全にリセット
+    clearCache();
 
     let maxRetries = 10;
     let attempt = 0;
 
     while (attempt < maxRetries) {
+      // 💡 2. Replay（再実行）のたびに、履歴の読み取り位置を先頭に戻す
+      resetCursor();
+
       let capturedPanic = "";
       const originalError = console.error;
       
@@ -43,13 +46,13 @@ export default {
         originalError.apply(console, args);
       };
 
-try {
+      try {
         const [status, contentType, encoding, resBody] = wasmApp.handleCloudflare(method, path, body);
         console.error = originalError; // 元に戻す
 
-        // 💡 追加＆修正ポイント：WASMが例外を投げずにエラー出力だけで終了した場合を拾う
+        // 💡 例外を投げずにエラー出力だけで終了した場合を拾う
         if (capturedPanic) {
-            throw new Error("SuspendTrigger"); // 強制的に下の catch(e) へ飛ばす！
+            throw new Error("SuspendTrigger");
         }
 
         if (resBody) {
@@ -57,11 +60,9 @@ try {
             if (resString.includes("DB_SUSPEND:")) {
                 capturedPanic = resString;
                 throw new Error("SuspendTrigger");
-            }else {
-                // 💡 ===== ここを追加 =====
+            } else {
                 console.log("=== 🚀 FINAL WASM RESPONSE ===");
                 console.log(resString);
-                // 💡 =====================
             }
         }
         
@@ -72,7 +73,7 @@ try {
       } catch (e) {
         console.error = originalError; // 元に戻す
 
-        // 👑 追加: jcoがエラーをJSの例外(TypeError等)として投げた場合をキャッチ
+        // 👑 jcoがエラーをJSの例外(TypeError等)として投げた場合をキャッチ
         if (e && e.message && e.message.includes("DB_SUSPEND:")) {
             capturedPanic = e.message;
         }
@@ -91,18 +92,28 @@ try {
             if (payload.params && payload.params.length > 0) {
                 stmt = stmt.bind(...payload.params);
             }
+            // D1実行 (all() を使うとSELECTの結果もINSERTのメタデータも取得可能)
             const dbResult = await stmt.all();
 
-            // 結果をキャッシュにセットしてループを継続（リプレイ）
-            const jsonResult = JSON.stringify(dbResult.results);
-            // 💡 ===== ここに追加 =====
+            // 💡 3. クエリ種別に応じて Rust ドライバが期待する形式に合わせる
+            const isSelect = payload.query.trim().match(/^SELECT/i);
+            let cacheValue = "";
+            if (isSelect) {
+                // Rustの query 関数向け: JSON配列
+                cacheValue = JSON.stringify(dbResult.results || []);
+            } else {
+                // Rustの exec 関数向け: 影響を受けた行数（文字列型の数字）
+                cacheValue = String(dbResult.meta?.changes || 0);
+            }
+
             console.log("=== 🔍 D1 QUERY RESULT ===");
             console.log("SQL:", payload.query);
             console.log("Params:", payload.params);
-            console.log("Data:", jsonResult);
+            console.log("Data:", cacheValue);
             console.log("==========================");
-            // 💡 =====================
-            setCache(jsonResult);
+            
+            // 💡 4. 履歴の末尾に結果を追加
+            pushCache(cacheValue);
 
             attempt++;
             continue;

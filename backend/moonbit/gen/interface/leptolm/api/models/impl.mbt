@@ -14,13 +14,26 @@ pub fn get_items() -> GetItemsRes {
     Err(_) => return { items: [] }
   }
 
-  // 2. クエリを準備
+  // 👑 --- 複数クエリ対応テスト用のダミークエリ ---
+  let dummy_stmt = match @types.Statement::prepare("SELECT 'dummy_ok' as status", []) {
+    Ok(s) => s
+    Err(_) => return { items: [] }
+  }
+  
+  // 実行（1回目のサスペンドが発動し、JS側でキャッシュ配列の0番目に結果が入る）
+  let _ = match @readwrite.query(conn, dummy_stmt) {
+    Ok(r) => r
+    Err(_) => return { items: [] }
+  }
+  // ------------------------------------------------
+
+  // 2. 本番クエリを準備
   let stmt = match @types.Statement::prepare("SELECT id, item_name, quantity FROM items", []) {
     Ok(s) => s
     Err(_) => return { items: [] }
   }
 
-  // 3. クエリ実行（🚀 ここでRustドライバに飛び、JS側でサスペンドループが発動します！）
+  // 3. クエリ実行（2回目のサスペンドが発動し、JS側でキャッシュ配列の1番目に結果が入る）
   let rows = match @readwrite.query(conn, stmt) {
     Ok(r) => r
     Err(_) => return { items: [] }
@@ -53,7 +66,7 @@ pub fn get_items() -> GetItemsRes {
         match row.value {
           // JSONパース時にNumberはDoubleとして解釈されています
           @types.DataType::Double(n) => {
-            current_qty = n.to_int().to_uint()
+            current_qty = n.to_int().reinterpret_as_uint()
           }
           _ => ()
         }
