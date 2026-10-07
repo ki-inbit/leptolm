@@ -1,10 +1,32 @@
 pub fn process_add_item(req : AddItemReq) -> AddItemRes {
-  let name = req.item_name
-  let qty = req.quantity
-  let msg = "MoonBitが処理しました！追加完了: \{name} (数量: \{qty})"
-  let time = "2026-08-26 21:00:00"
+  // 1. DB接続を開く
+  let conn = match @types.Connection::open("d1") {
+    Ok(c) => c
+    Err(_) => return { success: false, message: "DB接続エラー", server_time: "" }
+  }
 
-  { success: true, message: msg, server_time: time }
+  // 2. INSERTクエリを準備
+  // id は SQLite の機能 (hex(randomblob(8))) を使ってランダムな16文字の文字列を自動生成させます
+  let query = "INSERT INTO items (id, item_name, quantity) VALUES (hex(randomblob(8)), ?, ?)"
+  
+  // パラメータは配列として渡す (数値の quantity は to_string() で文字列化)
+  let params = [req.item_name, req.quantity.to_string()]
+  
+  let stmt = match @types.Statement::prepare(query, params) {
+    Ok(s) => s
+    Err(_) => return { success: false, message: "クエリ準備エラー", server_time: "" }
+  }
+
+  // 3. クエリ実行（🚀 ここでRustの exec ドライバへ飛び、サスペンドループが発動）
+  match @readwrite.exec(conn, stmt) {
+    Ok(affected_rows) => {
+      let msg = "追加成功！(影響行数: \{affected_rows}) - \{req.item_name} (数量: \{req.quantity})"
+      { success: true, message: msg, server_time: "2026-10-08" }
+    }
+    Err(_) => {
+      { success: false, message: "アイテムの追加に失敗しました", server_time: "" }
+    }
+  }
 }
 
 pub fn get_items() -> GetItemsRes {
@@ -87,4 +109,37 @@ pub fn get_items() -> GetItemsRes {
   })
 
   { items }
+}
+
+pub fn process_delete_item(req : DeleteItemReq) -> DeleteItemRes {
+  // 1. DB接続を開く
+  let conn = match @types.Connection::open("d1") {
+    Ok(c) => c
+    Err(_) => return { success: false, message: "DB接続エラー" }
+  }
+
+  // 2. DELETEクエリを準備
+  let query = "DELETE FROM items WHERE id = ?"
+  let params = [req.id]
+  
+  let stmt = match @types.Statement::prepare(query, params) {
+    Ok(s) => s
+    Err(_) => return { success: false, message: "クエリ準備エラー" }
+  }
+
+  // 3. クエリ実行（🚀 サスペンド・リプレイループ発動！）
+  match @readwrite.exec(conn, stmt) {
+    Ok(affected_rows) => {
+      // D1(SQLite)は、該当するIDが無かった場合エラーにはならず「影響行数0」を返します
+      if affected_rows > 0 {
+        let msg = "アイテムを削除しました (対象ID: \{req.id})"
+        { success: true, message: msg }
+      } else {
+        { success: false, message: "指定されたアイテムが見つかりませんでした" }
+      }
+    }
+    Err(_) => {
+      { success: false, message: "アイテムの削除に失敗しました" }
+    }
+  }
 }

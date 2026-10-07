@@ -9,10 +9,10 @@ pub fn Connection::open(_name : String) -> Result[Connection, Error_] {
   Ok(Connection::Connection(1))
 }
 
-// 👑 _params の型を Array[String] に修正
-pub fn Statement::prepare(query : String, _params : Array[String]) -> Result[Statement, Error_] {
+// 👑 _params のアンダースコアを取り、受け取った params をそのまま保存する
+pub fn Statement::prepare(query : String, params : Array[String]) -> Result[Statement, Error_] {
   let id = statement_store.length()
-  statement_store.push({ query, params: [] })
+  statement_store.push({ query: query, params: params })
   Ok(Statement::Statement(id))
 }
 

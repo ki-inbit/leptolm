@@ -12,6 +12,15 @@ interface models {
         server-time: string,
     }
 
+    record delete-item-req {
+        id: string,
+    }
+
+    record delete-item-res {
+        success: bool,
+        message: string,
+    }
+
     record item {
         id: string,
         item-name: string,
@@ -26,6 +35,8 @@ interface models {
     get-items: func() -> get-items-res;
 
     process-add-item: func(req: add-item-req) -> add-item-res;
+
+    process-delete-item: func(req: delete-item-req) -> delete-item-res;
 }
 
 world shared-types {

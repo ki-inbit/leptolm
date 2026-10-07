@@ -8,6 +8,14 @@ pub(all) struct AddItemRes {
       success : Bool; message : String; server_time : String
 }
 ///|
+pub(all) struct DeleteItemReq {
+      id : String
+}
+///|
+pub(all) struct DeleteItemRes {
+      success : Bool; message : String
+}
+///|
 pub(all) struct Item {
       id : String; item_name : String; quantity : UInt
 }
@@ -19,4 +27,6 @@ pub(all) struct GetItemsRes {
 declare pub fn get_items() -> GetItemsRes
 ///|
 declare pub fn process_add_item(req : AddItemReq) -> AddItemRes
+///|
+declare pub fn process_delete_item(req : DeleteItemReq) -> DeleteItemRes
 

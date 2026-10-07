@@ -80,6 +80,7 @@ where
     let input_text = RwSignal::new(String::new());
     let input_qty = RwSignal::new(1u32);
     let text_input_ref = NodeRef::<leptos::html::Input>::new();
+    let qty_input_ref = NodeRef::<leptos::html::Input>::new();
 
     mview! {
         div style="margin-bottom: 20px; padding: 15px; background: #fff9e6; border: 1px solid #ffe0b2; border-radius: 4px; box-sizing: border-box; width: 100%;" {
@@ -97,6 +98,7 @@ where
                     on:keypress={move |e| e.stop_propagation()}
                 ;
                 input
+                    ref={qty_input_ref}
                     type="number"
                     style="width: 70px; padding: 8px; box-sizing: border-box; font-size: 16px;"
                     value={input_qty.get_untracked().to_string()}
@@ -123,6 +125,9 @@ where
                                     input_qty.set(1);
                                     if let Some(input_el) = text_input_ref.get() {
                                         input_el.set_value("");
+                                    }
+                                    if let Some(qty_el) = qty_input_ref.get() {
+                                        qty_el.set_value("1"); 
                                     }
                                 }
                             }
@@ -224,4 +229,38 @@ pub fn MobileKeyboardCloser() -> impl IntoView {
 
     // 👑 画面上には何も描画しない（透明）
     ()
+}
+
+// ==========================================
+// 👑 4. 削除ボタン付きリストアイテム
+// ==========================================
+#[component]
+pub fn RemovableListItem<F>(
+    #[prop(into)] id: String,
+    #[prop(into)] display_text: String,
+    on_delete: F, 
+) -> impl IntoView
+where
+    // 👑 削除対象の ID (String) を渡して Action を生成するクロージャ
+    F: Fn(String) -> Action + Clone + Send + Sync + 'static,
+{
+    let dispatcher = use_context::<Dispatcher<MyApp>>();
+
+    mview! {
+        li style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #eee;" {
+            span { {display_text} }
+            button 
+                style="background: #ffcdd2; color: #b71c1c; border: 1px solid #e53935; border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 14px;"
+                on:click={
+                    let on_delete = on_delete.clone();
+                    let id_clone = id.clone();
+                    move |_| {
+                        if let Some(disp) = &dispatcher {
+                            disp.dispatch(on_delete(id_clone.clone()));
+                        }
+                    }
+                }
+            { "削除" }
+        }
+    }
 }

@@ -44,11 +44,6 @@ pub fn wasmExportProcessAddItem(p0 : Int, p1 : Int, p2 : Int) -> Int {
 }
 
 #doc(hidden)
-pub fn wasmExportProcessAddItemPostReturn(p0 : Int) -> Unit {
-      @models.wasmExportProcessAddItemPostReturn(p0)
-}
-
-#doc(hidden)
 pub fn wasmExportGetItems() -> Int {
       @models.wasmExportGetItems()
 }
@@ -56,6 +51,21 @@ pub fn wasmExportGetItems() -> Int {
 #doc(hidden)
 pub fn wasmExportGetItemsPostReturn(p0 : Int) -> Unit {
       @models.wasmExportGetItemsPostReturn(p0)
+}
+
+#doc(hidden)
+pub fn wasmExportProcessAddItemPostReturn(p0 : Int) -> Unit {
+      @models.wasmExportProcessAddItemPostReturn(p0)
+}
+
+#doc(hidden)
+pub fn wasmExportProcessDeleteItem(p0 : Int, p1 : Int) -> Int {
+      @models.wasmExportProcessDeleteItem(p0, p1)
+}
+
+#doc(hidden)
+pub fn wasmExportProcessDeleteItemPostReturn(p0 : Int) -> Unit {
+      @models.wasmExportProcessDeleteItemPostReturn(p0)
 }
 
 fn main {}

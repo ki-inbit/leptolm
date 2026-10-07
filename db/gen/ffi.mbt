@@ -39,38 +39,8 @@ extern "wasm" fn mbt_ffi_free(position : Int) =
 #|(func (param i32) local.get 0 call $moonbit.decref)
 
 #doc(hidden)
-pub fn wasmExportExec(p0 : Int, p1 : Int) -> Int {
-      @readwrite.wasmExportExec(p0, p1)
-}
-
-#doc(hidden)
-pub fn wasmExportStatementDtor(handle : Int) -> Unit {
-      @types.wasmExportStatementDtor(handle)
-}
-
-#doc(hidden)
 pub fn wasmExportError_Dtor(handle : Int) -> Unit {
       @types.wasmExportError_Dtor(handle)
-}
-
-#doc(hidden)
-pub fn wasmExportStaticConnectionOpen(p0 : Int, p1 : Int) -> Int {
-      @types.wasmExportStaticConnectionOpen(p0, p1)
-}
-
-#doc(hidden)
-pub fn wasmExportStaticStatementPrepare(p0 : Int, p1 : Int, p2 : Int, p3 : Int) -> Int {
-      @types.wasmExportStaticStatementPrepare(p0, p1, p2, p3)
-}
-
-#doc(hidden)
-pub fn wasmExportQuery(p0 : Int, p1 : Int) -> Int {
-      @readwrite.wasmExportQuery(p0, p1)
-}
-
-#doc(hidden)
-pub fn wasmExportQueryPostReturn(p0 : Int) -> Unit {
-      @readwrite.wasmExportQueryPostReturn(p0)
 }
 
 #doc(hidden)
@@ -79,13 +49,43 @@ pub fn wasmExportConnectionDtor(handle : Int) -> Unit {
 }
 
 #doc(hidden)
-pub fn wasmExportMethodErrorTrace(p0 : Int) -> Int {
-      @types.wasmExportMethodErrorTrace(p0)
+pub fn wasmExportExec(p0 : Int, p1 : Int) -> Int {
+      @readwrite.wasmExportExec(p0, p1)
 }
 
 #doc(hidden)
 pub fn wasmExportMethodErrorTracePostReturn(p0 : Int) -> Unit {
       @types.wasmExportMethodErrorTracePostReturn(p0)
+}
+
+#doc(hidden)
+pub fn wasmExportStaticStatementPrepare(p0 : Int, p1 : Int, p2 : Int, p3 : Int) -> Int {
+      @types.wasmExportStaticStatementPrepare(p0, p1, p2, p3)
+}
+
+#doc(hidden)
+pub fn wasmExportQueryPostReturn(p0 : Int) -> Unit {
+      @readwrite.wasmExportQueryPostReturn(p0)
+}
+
+#doc(hidden)
+pub fn wasmExportStatementDtor(handle : Int) -> Unit {
+      @types.wasmExportStatementDtor(handle)
+}
+
+#doc(hidden)
+pub fn wasmExportMethodErrorTrace(p0 : Int) -> Int {
+      @types.wasmExportMethodErrorTrace(p0)
+}
+
+#doc(hidden)
+pub fn wasmExportStaticConnectionOpen(p0 : Int, p1 : Int) -> Int {
+      @types.wasmExportStaticConnectionOpen(p0, p1)
+}
+
+#doc(hidden)
+pub fn wasmExportQuery(p0 : Int, p1 : Int) -> Int {
+      @readwrite.wasmExportQuery(p0, p1)
 }
 
 

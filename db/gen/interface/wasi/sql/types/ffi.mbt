@@ -108,6 +108,14 @@ pub fn wasmExportStaticConnectionOpen(p0 : Int, p1 : Int) -> Int {
 }
 
 ///|
+extern "wasm" fn mbt_ffi_load32(offset : Int) -> Int =
+#|(func (param i32) (result i32) local.get 0 i32.load)
+
+///|
+extern "wasm" fn mbt_ffi_store32(offset : Int, value : Int) =
+#|(func (param i32) (param i32) local.get 0 local.get 1 i32.store)
+
+///|
 extern "wasm" fn mbt_ffi_malloc(size : Int) -> Int =
 #|(func (param i32) (result i32) (local i32)
 #| local.get 0 i32.const 4 i32.add call $moonbit.gc.malloc
@@ -115,20 +123,17 @@ extern "wasm" fn mbt_ffi_malloc(size : Int) -> Int =
 #| local.get 1)
 
 ///|
-extern "wasm" fn mbt_ffi_store32(offset : Int, value : Int) =
-#|(func (param i32) (param i32) local.get 0 local.get 1 i32.store)
+extern "wasm" fn mbt_ffi_store8(offset : Int, value : Int) =
+#|(func (param i32) (param i32) local.get 0 local.get 1 i32.store8)
 
 ///|
 extern "wasm" fn mbt_ffi_free(position : Int) =
 #|(func (param i32) local.get 0 call $moonbit.decref)
 
 ///|
-extern "wasm" fn mbt_ffi_load32(offset : Int) -> Int =
-#|(func (param i32) (result i32) local.get 0 i32.load)
-
-///|
-extern "wasm" fn mbt_ffi_store8(offset : Int, value : Int) =
-#|(func (param i32) (param i32) local.get 0 local.get 1 i32.store8)
+#owned(str)
+extern "wasm" fn mbt_ffi_str2ptr(str : String) -> Int =
+#|(func (param i32) (result i32) local.get 0)
 
 ///|
 extern "wasm" fn mbt_ffi_ptr2str(ptr : Int, len : Int) -> String =
@@ -136,9 +141,4 @@ extern "wasm" fn mbt_ffi_ptr2str(ptr : Int, len : Int) -> String =
 #| local.get 0
 #| local.get 1 call $moonbit.init_array16
 #| local.get 0)
-
-///|
-#owned(str)
-extern "wasm" fn mbt_ffi_str2ptr(str : String) -> Int =
-#|(func (param i32) (result i32) local.get 0)
 

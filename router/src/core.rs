@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 use leptos::prelude::*;
-use shared::{AddItemReq, AddItemRes};
+use shared::{AddItemReq, AddItemRes, DeleteItemReq, DeleteItemRes};
 
 // 👑 WASI用: 今までの "router" の設計図を使う
 #[cfg(not(feature = "cloudflare"))]
@@ -39,6 +39,7 @@ pub enum HttpMethod {
 pub enum LeptolmRoute<'a> {
     ApiAddItem,
     ApiGetItems,
+    ApiDeleteItem,
     FrontendApp,
     Unity(&'a str),
     Pkg(&'a str),
@@ -51,7 +52,8 @@ impl<'a> LeptolmRoute<'a> {
 
         match (method, clean_path) {
             (HttpMethod::Post, "api/add_item") => LeptolmRoute::ApiAddItem,
-            (HttpMethod::Get, "api/items") => LeptolmRoute::ApiGetItems, // 👑 追加
+            (HttpMethod::Get, "api/items") => LeptolmRoute::ApiGetItems, 
+            (HttpMethod::Post, "api/delete_item") => LeptolmRoute::ApiDeleteItem,
             (_, p) if p.starts_with("api") => LeptolmRoute::NotFound,
 
             (HttpMethod::Get, p) if p.starts_with("unity/") => {
@@ -72,7 +74,6 @@ pub struct RawResponse {
     pub body: Vec<u8>,
 }
 
-// ... 前略 ...
 pub fn router_engine(route: LeptolmRoute, req_body_bytes: Vec<u8>) -> RawResponse {
     match route {
         LeptolmRoute::ApiAddItem => {
@@ -87,6 +88,19 @@ pub fn router_engine(route: LeptolmRoute, req_body_bytes: Vec<u8>) -> RawRespons
                 content_type: "application/x-msgpack".into(), // 👑 2. ヘッダー変更
                 encoding: None,
                 // 👑 3. 構造体をMessagePackのバイト列に変換
+                body: rmp_serde::to_vec(&res_data).unwrap_or_default(),
+            }
+        }
+        LeptolmRoute::ApiDeleteItem => {
+            let req: DeleteItemReq = rmp_serde::from_slice(&req_body_bytes)
+                .expect("Failed to deserialize DeleteItemReq");
+
+            let res_data = shared::process_delete_item(&req);
+
+            RawResponse {
+                status: 200,
+                content_type: "application/x-msgpack".into(),
+                encoding: None,
                 body: rmp_serde::to_vec(&res_data).unwrap_or_default(),
             }
         }

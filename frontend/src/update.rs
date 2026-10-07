@@ -1,9 +1,9 @@
 use leptos::prelude::*;
 use reactive_stores::Store;
 use std::time::Duration;
-use shared::{AddItemReq, AddItemRes, GetItemsRes};
+use shared::{AddItemReq, AddItemRes, GetItemsRes}; // 👑 shared に DeleteItemReq/Res が必要になります
 use leptolm_core::{ElmApp, Dispatcher, Cmd};
-use crate::model::{AppState, Action, Effect, AppStateStoreFields};
+use crate::model::{AppState, Action, Effect, AppStateStoreFields, Item};
 
 pub struct MyApp;
 
@@ -57,7 +57,7 @@ impl ElmApp for MyApp {
             }
             Action::FetchListSuccess { request_id, items } => {
                 if request_id == store.fetch_list_id().get_untracked() {
-                    store.items().set(items);
+                    store.items().set(items); // 👑 変更: 構造体のままセット
                     store.status_message().set("✅ リストを更新しました".into());
                 }
                 Cmd::None
@@ -77,6 +77,26 @@ impl ElmApp for MyApp {
                     Cmd::Single(Effect::FetchListEffect { request_id: list_id }),
                 ])
             }
+            // 👑 追加: アイテム削除アクションの実装
+            Action::DeleteItemAsync(id) => {
+                let next_id = store.delete_item_id().get_untracked() + 1;
+                store.delete_item_id().set(next_id);
+                store.status_message().set(format!("アイテム削除中... (リクエストID: {})", next_id));
+                Cmd::Single(Effect::DeleteItemEffect { request_id: next_id, id })
+            }
+            Action::DeleteItemSuccess { request_id, message } => {
+                if request_id == store.delete_item_id().get_untracked() {
+                    store.status_message().set(format!("🗑️ 削除完了: {}", message));
+                }
+                Cmd::None
+            }
+            Action::DeleteItemFailed { request_id, error } => {
+                if request_id == store.delete_item_id().get_untracked() {
+                    store.status_message().set(format!("❌ 削除失敗: {}", error));
+                }
+                Cmd::None
+            }
+            
             Action::GlobalError(msg) => {
                 store.global_error().set(Some(msg));
                 Cmd::None
@@ -103,23 +123,21 @@ impl ElmApp for MyApp {
             Effect::AddItemEffect { request_id, item_name, quantity } => {
                 wasm_bindgen_futures::spawn_local(async move {
                     let req_body = AddItemReq { item_name, quantity };
-                    // 👑 1. リクエストをMessagePackのバイト列に変換
                     let body_bytes = rmp_serde::to_vec(&req_body).unwrap_or_default();
                     
                     let origin = web_sys::window().and_then(|w| w.location().origin().ok()).unwrap_or_else(|| "http://127.0.0.1:3000".to_string());
                     let url = format!("{}/api/add_item", origin.trim_end_matches('/'));
                     let client = reqwest::Client::new();
                     
-                    // 👑 2. .json() ではなく、ヘッダーを手動設定してバイト列(.body())を送信
                     match client.post(&url)
                         .header("Content-Type", "application/x-msgpack")
                         .body(body_bytes)
                         .send().await {
                         Ok(response) => {
-                            // 👑 3. レスポンスもバイト列として受け取り、MessagePackでパース
                             let bytes = response.bytes().await.unwrap_or_default();
                             if let Ok(res_data) = rmp_serde::from_slice::<AddItemRes>(&bytes) {
                                 dispatcher.dispatch(Action::AddItemSuccess { request_id, message: res_data.message });
+                                dispatcher.dispatch(Action::FetchListAsync);
                             } else {
                                 dispatcher.dispatch_error("APIレスポンスのパースに失敗しました！");
                             }
@@ -135,16 +153,20 @@ impl ElmApp for MyApp {
                     let url = format!("{}/api/items", origin.trim_end_matches('/'));
                     let client = reqwest::Client::new();
                     
-                    match client.get(&url).send().await {
+                    match client.get(&url)
+                    .header("Cache-Control", "no-store, no-cache, must-revalidate")
+                    .send().await {
                         Ok(response) => {
-                            // 👑 1. テキストではなく「バイト列(bytes)」として受け取る
                             let bytes = response.bytes().await.unwrap_or_default();
-                            
-                            // 👑 2. MessagePackとしてパース
                             match rmp_serde::from_slice::<GetItemsRes>(&bytes) {
                                 Ok(res_data) => {
+                                    // 👑 変更: format せずに、そのまま Item 構造体に変換してリストにする
                                     let items = res_data.items.into_iter()
-                                        .map(|item| format!("{} (x{})", item.item_name, item.quantity))
+                                        .map(|item| Item { 
+                                            id: item.id, 
+                                            item_name: item.item_name, 
+                                            quantity: item.quantity 
+                                        })
                                         .collect();
                                     dispatcher.dispatch(Action::FetchListSuccess { request_id, items });
                                 }
@@ -154,6 +176,41 @@ impl ElmApp for MyApp {
                             }
                         }
                         Err(e) => dispatcher.dispatch(Action::FetchListFailed { request_id, error: e.to_string() }),
+                    }
+                });
+            }
+
+            Effect::DeleteItemEffect { request_id, id } => {
+                wasm_bindgen_futures::spawn_local(async move {
+                    let req_body = shared::DeleteItemReq { id };
+                    let body_bytes = rmp_serde::to_vec(&req_body).unwrap_or_default();
+                    
+                    let origin = web_sys::window().and_then(|w| w.location().origin().ok()).unwrap_or_else(|| "http://127.0.0.1:3000".to_string());
+                    let url = format!("{}/api/delete_item", origin.trim_end_matches('/'));
+                    let client = reqwest::Client::new();
+                    
+                    match client.post(&url)
+                        .header("Content-Type", "application/x-msgpack")
+                        .body(body_bytes)
+                        .send().await {
+                        Ok(response) => {
+                            let bytes = response.bytes().await.unwrap_or_default();
+                            
+                            if let Ok(res_data) = rmp_serde::from_slice::<shared::DeleteItemRes>(&bytes) {
+                                dispatcher.dispatch(Action::DeleteItemSuccess { request_id, message: res_data.message });
+                                
+                                // 💡 確実に追加: 削除が成功したら、リスト更新アクションを強制発火！
+                                dispatcher.dispatch(Action::FetchListAsync);
+                                
+                            } else {
+                                // 💡 もしレスポンスのパースに失敗して止まっていた場合は、画面にエラーを出して気づけるようにする
+                                dispatcher.dispatch_error("削除APIのレスポンスパースに失敗しました");
+                                
+                                // パースに失敗した場合でも、とりあえず念のためリストは更新しにいく
+                                dispatcher.dispatch(Action::FetchListAsync);
+                            }
+                        }
+                        Err(e) => dispatcher.dispatch(Action::DeleteItemFailed { request_id, error: e.to_string() }),
                     }
                 });
             }

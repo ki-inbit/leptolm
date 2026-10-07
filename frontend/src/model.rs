@@ -1,5 +1,13 @@
 use reactive_stores::Store;
 
+// 👑 1. 追加: リスト表示用の Item 構造体を定義
+#[derive(Clone, Debug, PartialEq, Default)]
+pub struct Item {
+    pub id: String,
+    pub item_name: String,
+    pub quantity: u32,
+}
+
 #[derive(Store, Clone, Default)]
 pub struct AppState {
     pub count: i32,
@@ -7,7 +15,8 @@ pub struct AppState {
     pub status_message: String,
     pub add_item_id: u32,
     pub fetch_list_id: u32,
-    pub items: Vec<String>,
+    pub delete_item_id: u32,
+    pub items: Vec<Item>,
     pub global_error: Option<String>,
 }
 
@@ -23,9 +32,13 @@ pub enum Action {
     AddItemSuccess { request_id: u32, message: String },
     AddItemFailed { request_id: u32, error: String },
     FetchListAsync,
-    FetchListSuccess { request_id: u32, items: Vec<String> },
+    FetchListSuccess { request_id: u32, items: Vec<Item> },
     FetchListFailed { request_id: u32, error: String },
+    DeleteItemAsync(String),
+    DeleteItemSuccess { request_id: u32, message: String },
+    DeleteItemFailed { request_id: u32, error: String },
     FetchBothAsync,
+
     GlobalError(String),
     ClearGlobalError,
 }
@@ -35,4 +48,5 @@ pub enum Effect {
     FetchUserEffect(u32),
     AddItemEffect { request_id: u32, item_name: String, quantity: u32 },
     FetchListEffect { request_id: u32 },
+    DeleteItemEffect { request_id: u32, id: String },
 }

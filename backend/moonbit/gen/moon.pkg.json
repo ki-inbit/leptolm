@@ -13,7 +13,9 @@
                   "wasmExportGetItems:leptolm:api/models#get-items",
                   "wasmExportGetItemsPostReturn:cabi_post_leptolm:api/models#get-items",
                   "wasmExportProcessAddItem:leptolm:api/models#process-add-item",
-                  "wasmExportProcessAddItemPostReturn:cabi_post_leptolm:api/models#process-add-item"
+                  "wasmExportProcessAddItemPostReturn:cabi_post_leptolm:api/models#process-add-item",
+                  "wasmExportProcessDeleteItem:leptolm:api/models#process-delete-item",
+                  "wasmExportProcessDeleteItemPostReturn:cabi_post_leptolm:api/models#process-delete-item"
                   ]
             }
       }

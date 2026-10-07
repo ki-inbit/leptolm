@@ -7,7 +7,8 @@ use leptolm_core::Dispatcher;
 use crate::model::Action;
 use crate::update::MyApp;
 use crate::model::AppStateStoreFields;
-use crate::components::{TextInputForm, TextAndNumberInputForm, UnityPlayer, MobileKeyboardCloser};
+// 👑 RemovableListItem を追加インポート
+use crate::components::{TextInputForm, TextAndNumberInputForm, UnityPlayer, MobileKeyboardCloser, RemovableListItem};
 
 #[component]
 pub fn App() -> impl IntoView {
@@ -20,13 +21,11 @@ pub fn App() -> impl IntoView {
     provide_meta_context();
 
     mview! {
-        // 👑 画面端にピッタリくっつかないよう最大幅を設定し、中央揃え
         div style="font-family: sans-serif; padding: 15px; max-width: 1000px; margin: 0 auto; box-sizing: border-box;" {
             {view! { <MobileKeyboardCloser/> }}
             h1 style="font-size: 1.5rem; word-break: keep-all;" { "コア分離版 ハイブリッドアーキテクチャ" }
 
             {move || store.global_error().get().map(|err| mview! {
-                // 👑 エラー表示もスマホ幅で改行されるように変更
                 div style="background: #ffebee; color: #c62828; padding: 15px; margin-bottom: 20px; border-left: 5px solid #c62828; display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center;" {
                     span { strong { "🚨 システムエラー: " } {err} }
                     button 
@@ -47,7 +46,6 @@ pub fn App() -> impl IntoView {
                 p style="margin: 0;" { "現在の正式な名前: " {move || store.user_name().get()} }
             }
 
-            // 👑 ボタン群が画面幅に応じて自動で折り返されるように flex-wrap を追加
             div style="margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;" {
                 button style="padding: 8px 16px; font-size: 16px;" on:click={move |_| dispatcher.dispatch(Action::Increment)} { "＋" }
                 button style="padding: 8px 16px; font-size: 16px;" on:click={move |_| dispatcher.dispatch(Action::Decrement)} { "－" }
@@ -74,9 +72,18 @@ pub fn App() -> impl IntoView {
                     on:click={move |_| dispatcher.dispatch(Action::FetchListAsync)} 
                 { "🔄 一覧を更新" }
                 
-                ul style="margin: 0; padding-left: 20px; line-height: 1.6;" {
+                // 👑 修正: <ul> のデフォルトスタイルを消し、RemovableListItem を描画する
+                ul style="margin: 0; padding: 0; list-style: none;" {
                     {move || store.items().get().into_iter().map(|item| {
-                        view! { <li>{item}</li> }
+                        // 💡 もし現状 `item` が単なる String 型の場合はエラーになります。
+                        // その場合は `crate::model::Item` を { id: String, item_name: String, quantity: u32 } のような構造体に変更してください。
+                        view! {
+                            <RemovableListItem
+                                id={item.id.clone()}
+                                display_text={format!("{} (x{})", item.item_name, item.quantity)}
+                                on_delete={move |id| Action::DeleteItemAsync(id)}
+                            />
+                        }
                     }).collect_view()}
                 }
             }
@@ -90,13 +97,11 @@ pub fn App() -> impl IntoView {
                     {move || if is_open.get() { "▼ 閉じる" } else { "▶ 開く" }}
                 }
 
-                // 👑 長かったinputやbuttonを消して、TextInputFormを呼び出すだけ！
                 {move || is_open.get().then(|| view! {
                     <TextInputForm 
                         title="👤 ユーザー名の変更"
                         placeholder="新しい名前を入力..."
                         button_text="正式な名前に反映"
-                        // 👑 文字列(name)だけ受け取るのでスッキリ！
                         on_submit={move |name| Action::ChangeUserName(name)}
                     />
                 })}

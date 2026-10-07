@@ -69,21 +69,37 @@ pub fn wasmExportProcessAddItemPostReturn(p0 : Int) -> Unit {
 
 }
 
-///|
-extern "wasm" fn mbt_ffi_store32(offset : Int, value : Int) =
-#|(func (param i32) (param i32) local.get 0 local.get 1 i32.store)
+#doc(hidden)
+pub fn wasmExportProcessDeleteItem(p0 : Int, p1 : Int) -> Int {
 
-///|
-extern "wasm" fn mbt_ffi_ptr2str(ptr : Int, len : Int) -> String =
-#|(func (param i32) (param i32) (result i32)
-#| local.get 0
-#| local.get 1 call $moonbit.init_array16
-#| local.get 0)
+      let result = mbt_ffi_ptr2str(p0, p1)
+
+      let (result0) : (DeleteItemRes) = process_delete_item(DeleteItemReq::{id : result});
+      let return_area = mbt_ffi_malloc(12)
+      mbt_ffi_store8((return_area) + 0, (if (result0).success { 1 } else { 0 }))
+
+      let ptr = mbt_ffi_str2ptr((result0).message)
+      mbt_ffi_store32((return_area) + 8, (result0).message.length())
+      mbt_ffi_store32((return_area) + 4, ptr)
+      let ret = return_area
+      return ret
+
+}
+
+#doc(hidden)
+pub fn wasmExportProcessDeleteItemPostReturn(p0 : Int) -> Unit {
+      mbt_ffi_free(mbt_ffi_load32((p0) + 4))
+
+}
 
 ///|
 #owned(str)
 extern "wasm" fn mbt_ffi_str2ptr(str : String) -> Int =
 #|(func (param i32) (result i32) local.get 0)
+
+///|
+extern "wasm" fn mbt_ffi_store8(offset : Int, value : Int) =
+#|(func (param i32) (param i32) local.get 0 local.get 1 i32.store8)
 
 ///|
 extern "wasm" fn mbt_ffi_malloc(size : Int) -> Int =
@@ -97,8 +113,15 @@ extern "wasm" fn mbt_ffi_load32(offset : Int) -> Int =
 #|(func (param i32) (result i32) local.get 0 i32.load)
 
 ///|
-extern "wasm" fn mbt_ffi_store8(offset : Int, value : Int) =
-#|(func (param i32) (param i32) local.get 0 local.get 1 i32.store8)
+extern "wasm" fn mbt_ffi_ptr2str(ptr : Int, len : Int) -> String =
+#|(func (param i32) (param i32) (result i32)
+#| local.get 0
+#| local.get 1 call $moonbit.init_array16
+#| local.get 0)
+
+///|
+extern "wasm" fn mbt_ffi_store32(offset : Int, value : Int) =
+#|(func (param i32) (param i32) local.get 0 local.get 1 i32.store)
 
 ///|
 extern "wasm" fn mbt_ffi_free(position : Int) =
