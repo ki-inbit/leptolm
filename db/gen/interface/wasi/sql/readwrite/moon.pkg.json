@@ -10,6 +10,10 @@
       "alias": "db_spi"
     },
     {
+      "path": "leptolm/api/interface/wasi/sql/types",
+      "alias": "spi_types"
+    },
+    {
       "path": "moonbitlang/core/json",
       "alias": "json"
     }

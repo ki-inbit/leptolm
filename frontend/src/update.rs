@@ -1,7 +1,7 @@
 use leptos::prelude::*;
 use reactive_stores::Store;
 use std::time::Duration;
-use shared::{AddItemReq, AddItemRes, GetItemsRes}; // 👑 shared に DeleteItemReq/Res が必要になります
+use shared::{AddItemReq, AddItemRes, GetItemsRes, DeleteItemReq, DeleteItemRes, UpdateItemReq, UpdateItemRes};
 use leptolm_core::{ElmApp, Dispatcher, Cmd};
 use crate::model::{AppState, Action, Effect, AppStateStoreFields, Item};
 
@@ -31,6 +31,8 @@ impl ElmApp for MyApp {
             }
             Action::FetchUserFailed(err) => { store.status_message().set(err); Cmd::None }
             Action::ChangeUserName(new_name) => { store.user_name().set(new_name); Cmd::None }
+            
+            // アイテム追加
             Action::AddItemAsync(name, qty) => {
                 let next_id = store.add_item_id().get_untracked() + 1;
                 store.add_item_id().set(next_id);
@@ -49,6 +51,8 @@ impl ElmApp for MyApp {
                 }
                 Cmd::None
             }
+
+            // リスト取得
             Action::FetchListAsync => {
                 let next_id = store.fetch_list_id().get_untracked() + 1;
                 store.fetch_list_id().set(next_id);
@@ -57,7 +61,7 @@ impl ElmApp for MyApp {
             }
             Action::FetchListSuccess { request_id, items } => {
                 if request_id == store.fetch_list_id().get_untracked() {
-                    store.items().set(items); // 👑 変更: 構造体のままセット
+                    store.items().set(items);
                     store.status_message().set("✅ リストを更新しました".into());
                 }
                 Cmd::None
@@ -77,7 +81,8 @@ impl ElmApp for MyApp {
                     Cmd::Single(Effect::FetchListEffect { request_id: list_id }),
                 ])
             }
-            // 👑 追加: アイテム削除アクションの実装
+
+            // アイテム削除
             Action::DeleteItemAsync(id) => {
                 let next_id = store.delete_item_id().get_untracked() + 1;
                 store.delete_item_id().set(next_id);
@@ -96,7 +101,28 @@ impl ElmApp for MyApp {
                 }
                 Cmd::None
             }
-            
+
+            // 👑 追加: 数量更新
+            Action::UpdateItemAsync(id, qty) => {
+                let next_id = store.update_item_id().get_untracked() + 1;
+                store.update_item_id().set(next_id);
+                store.status_message().set(format!("数量更新中... (リクエストID: {})", next_id));
+                Cmd::Single(Effect::UpdateItemEffect { request_id: next_id, id, quantity: qty })
+            }
+            Action::UpdateItemSuccess { request_id, message } => {
+                if request_id == store.update_item_id().get_untracked() {
+                    store.status_message().set(format!("✏️ 数量変更完了: {}", message));
+                }
+                Cmd::None
+            }
+            Action::UpdateItemFailed { request_id, error } => {
+                if request_id == store.update_item_id().get_untracked() {
+                    store.status_message().set(format!("❌ 数量変更失敗: {}", error));
+                }
+                Cmd::None
+            }
+
+            // エラー制御
             Action::GlobalError(msg) => {
                 store.global_error().set(Some(msg));
                 Cmd::None
@@ -154,13 +180,12 @@ impl ElmApp for MyApp {
                     let client = reqwest::Client::new();
                     
                     match client.get(&url)
-                    .header("Cache-Control", "no-store, no-cache, must-revalidate")
-                    .send().await {
+                        .header("Cache-Control", "no-store, no-cache, must-revalidate")
+                        .send().await {
                         Ok(response) => {
                             let bytes = response.bytes().await.unwrap_or_default();
                             match rmp_serde::from_slice::<GetItemsRes>(&bytes) {
                                 Ok(res_data) => {
-                                    // 👑 変更: format せずに、そのまま Item 構造体に変換してリストにする
                                     let items = res_data.items.into_iter()
                                         .map(|item| Item { 
                                             id: item.id, 
@@ -182,7 +207,7 @@ impl ElmApp for MyApp {
 
             Effect::DeleteItemEffect { request_id, id } => {
                 wasm_bindgen_futures::spawn_local(async move {
-                    let req_body = shared::DeleteItemReq { id };
+                    let req_body = DeleteItemReq { id };
                     let body_bytes = rmp_serde::to_vec(&req_body).unwrap_or_default();
                     
                     let origin = web_sys::window().and_then(|w| w.location().origin().ok()).unwrap_or_else(|| "http://127.0.0.1:3000".to_string());
@@ -195,22 +220,44 @@ impl ElmApp for MyApp {
                         .send().await {
                         Ok(response) => {
                             let bytes = response.bytes().await.unwrap_or_default();
-                            
-                            if let Ok(res_data) = rmp_serde::from_slice::<shared::DeleteItemRes>(&bytes) {
+                            if let Ok(res_data) = rmp_serde::from_slice::<DeleteItemRes>(&bytes) {
                                 dispatcher.dispatch(Action::DeleteItemSuccess { request_id, message: res_data.message });
-                                
-                                // 💡 確実に追加: 削除が成功したら、リスト更新アクションを強制発火！
                                 dispatcher.dispatch(Action::FetchListAsync);
-                                
                             } else {
-                                // 💡 もしレスポンスのパースに失敗して止まっていた場合は、画面にエラーを出して気づけるようにする
                                 dispatcher.dispatch_error("削除APIのレスポンスパースに失敗しました");
-                                
-                                // パースに失敗した場合でも、とりあえず念のためリストは更新しにいく
                                 dispatcher.dispatch(Action::FetchListAsync);
                             }
                         }
                         Err(e) => dispatcher.dispatch(Action::DeleteItemFailed { request_id, error: e.to_string() }),
+                    }
+                });
+            }
+
+            // 👑 追加: 数量更新エフェクト
+            Effect::UpdateItemEffect { request_id, id, quantity } => {
+                wasm_bindgen_futures::spawn_local(async move {
+                    let req_body = UpdateItemReq { id, quantity };
+                    let body_bytes = rmp_serde::to_vec(&req_body).unwrap_or_default();
+                    
+                    let origin = web_sys::window().and_then(|w| w.location().origin().ok()).unwrap_or_else(|| "http://127.0.0.1:3000".to_string());
+                    let url = format!("{}/api/update_item", origin.trim_end_matches('/'));
+                    let client = reqwest::Client::new();
+                    
+                    match client.post(&url)
+                        .header("Content-Type", "application/x-msgpack")
+                        .body(body_bytes)
+                        .send().await {
+                        Ok(response) => {
+                            let bytes = response.bytes().await.unwrap_or_default();
+                            if let Ok(res_data) = rmp_serde::from_slice::<UpdateItemRes>(&bytes) {
+                                dispatcher.dispatch(Action::UpdateItemSuccess { request_id, message: res_data.message });
+                                dispatcher.dispatch(Action::FetchListAsync);
+                            } else {
+                                dispatcher.dispatch_error("数量更新APIのレスポンスパースに失敗しました");
+                                dispatcher.dispatch(Action::FetchListAsync);
+                            }
+                        }
+                        Err(e) => dispatcher.dispatch(Action::UpdateItemFailed { request_id, error: e.to_string() }),
                     }
                 });
             }

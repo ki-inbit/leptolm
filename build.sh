@@ -4,19 +4,22 @@ set -e
 GREEN='\033[0;32m'
 CYAN='\033[0;36m'
 YELLOW='\033[0;33m'
+RED='\033[0;31m'
 NC='\033[0m'
 
 # ==========================================
-# 👑 引数の解析 (デフォルト: local debug)
+# 0. 引数の解析 (ターゲット & ビルドモード)
 # ==========================================
-TARGET=${1:-local}
-MODE=${2:-debug}
+TARGET="local" # デフォルトを local に設定
+MODE="debug"
 
-if [ "$TARGET" = "cloudflare" ] && [ -z "$2" ]; then
-    MODE="release"
-fi
-
-echo -e "${YELLOW}🚀 ビルド開始: [ターゲット:${TARGET}] [モード: ${MODE}]${NC}"
+for arg in "$@"; do
+    case "$arg" in
+        release|debug) MODE="$arg" ;;
+        cloudflare|d1) TARGET="cloudflare" ;;
+        local|sqlite|wasi) TARGET="local" ;;
+    esac
+done
 
 if [ "$MODE" = "release" ]; then
     CARGO_FLAGS="--release"
@@ -29,12 +32,19 @@ else
 fi
 
 if [ "$TARGET" = "cloudflare" ]; then
-    CARGO_FLAGS="$CARGO_FLAGS --features cloudflare"
+    ROUTER_FEATURES="--features cloudflare"
+    echo -e "${YELLOW}🚀 全体ビルド開始: [ターゲット: Cloudflare (D1)] [モード: ${MODE}]${NC}"
+else
+    ROUTER_FEATURES=""
+    echo -e "${YELLOW}🚀 全体ビルド開始: [ターゲット: Local (SQLite)] [モード: ${MODE}]${NC}"
 fi
 
 cd "$(dirname "$0")"
 rm -f *.wasm
 
+# ==========================================
+# 1. 🎨 フロントエンドのビルド
+# ==========================================
 echo -e "${CYAN}🎨 フロントエンドをビルド中...${NC}"
 
 if [ "$TARGET" = "cloudflare" ]; then
@@ -53,13 +63,19 @@ else
     [ -f frontend/index.html ] && cp frontend/index.html public/
 fi
 
+# ==========================================
+# 2. ⚙️ ルーターのビルド
+# ==========================================
 echo "⚙️ ルーターをビルド中 (${MODE} モード)..."
 if [ "$TARGET" = "cloudflare" ]; then
-    cargo build -p router --target wasm32-wasip1 $CARGO_FLAGS
+    cargo build -p router --target wasm32-wasip1 $CARGO_FLAGS $ROUTER_FEATURES
 else
     cargo component build -p router $CARGO_FLAGS
 fi
 
+# ==========================================
+# 3. 🌙 MoonBit バックエンドのビルド
+# ==========================================
 echo "🌙 MoonBit バインディングを生成中..."
 wit-bindgen moonbit wit --out-dir backend/moonbit --world backend
 rm -f backend/moonbit/moon.mod.json
@@ -69,7 +85,7 @@ if ! grep -q "fn main" backend/moonbit/gen/ffi.mbt; then
     echo 'fn main {}' >> backend/moonbit/gen/ffi.mbt
 fi
 
-# 👑 追加: models パッケージに wasi:sql の依存を注入する
+# models パッケージに wasi:sql の依存を注入
 cat << 'EOF' > patch_backend_moon.js
 const fs = require('fs');
 const pkgPath = 'backend/moonbit/gen/interface/leptolm/api/models/moon.pkg.json';
@@ -121,6 +137,7 @@ if [ ! -f "$ADAPTER" ]; then
 fi
 
 echo "📦 MoonBit の Core WASM に WIT メタデータを埋め込み中..."
+#wasm-tools component embed wit "$BACKEND_CORE_WASM" --world backend --encoding utf16 -o backend-embedded.wasm
 wasm-tools component embed wit --world backend --encoding utf16 "$BACKEND_CORE_WASM" -o backend-embedded.wasm
 
 echo "📦 WASI Component へ変換中 (WASI 完全有効化)..."
@@ -134,10 +151,8 @@ if [ "$TARGET" = "cloudflare" ]; then
     wasm-tools component embed wit "$ROUTER_WASM" -w cloudflare-router -o router-embedded.wasm
     wasm-tools component new router-embedded.wasm --adapt wasi_snapshot_preview1="$ADAPTER" -o router-component.wasm
 
-    if [ ! -f "composed-db.wasm" ]; then
-        echo -e "${CYAN}🗄️ DBコンポーネントが見つからないためビルドします...${NC}"
-        ./build_db.sh $MODE
-    fi
+    echo -e "${CYAN}🗄️ DBコンポーネントをビルドします (ドライバ: d1)...${NC}"
+    ./build_db.sh d1 $MODE
 
     echo "🔗 [1/2] Backend に DB を合体しています..."
     wac plug "$BACKEND_COMPONENT_WASM" --plug composed-db.wasm -o backend-with-db.wasm
@@ -153,25 +168,16 @@ if [ "$TARGET" = "cloudflare" ]; then
 let cacheHistory = [];
 let cursor = 0;
 
-// WasmのRustドライバから呼ばれる関数
 export function getCache() {
     if (cursor < cacheHistory.length) {
-        return cacheHistory[cursor++]; // 現在のカーソルの結果を返し、カーソルを進める
+        return cacheHistory[cursor++]; 
     }
-    return ""; // 履歴が尽きていれば空文字を返す（→ Rust側でパニック発生）
+    return ""; 
 }
 
-// JSルーターから呼ばれる管理用関数
-export function pushCache(val) {
-    cacheHistory.push(val);
-}
-export function resetCursor() {
-    cursor = 0;
-}
-export function clearCache() {
-    cacheHistory = [];
-    cursor = 0;
-}
+export function pushCache(val) { cacheHistory.push(val); }
+export function resetCursor() { cursor = 0; }
+export function clearCache() { cacheHistory = []; cursor = 0; }
 EOF
 
     npx jco transpile app.wasm \
@@ -245,7 +251,6 @@ while ((match = importRegex.exec(code)) !== null) {
 
 const finalCode = newImports + code.substring(0, lastImportIndex) + mockCode + code.substring(lastImportIndex);
 
-// 👑 jco の undefined 参照バグ回避パッチ (究極の無敵版)
 let safeCode = finalCode;
 const bypass = (name, ret) => {
   const reg = new RegExp("function " + name + "[(]([^)]*)[)]\\s*[{]", "g");
@@ -257,22 +262,29 @@ bypass("rscTableRemove", "{ rep: arguments[0] || 0, 0: 0 }");
 bypass("rscTableGet", "{ rep: arguments[0] || 0, 0: 0 }");
 bypass("resourceTransferOwn", "arguments[0] || 0");
 bypass("resourceTransferBorrow", "arguments[0] || 0");
-
-// 👑 追加: Cloudflare 本番環境での「Wasm code generation disallowed」エラーを回避
 safeCode = safeCode.replace(/new WebAssembly\.Module/g, "Object");
 
 fs.writeFileSync(path, safeCode);
 EOF
 
-node optimize_wasm.js
-rm optimize_wasm.js
+    node optimize_wasm.js
+    rm optimize_wasm.js
 
-echo -e "${GREEN}✅ 最適化完了！ デプロイ準備が整いました。${NC}"
-echo -e "${CYAN}🚀 'npx wrangler dev' または 'deploy' を実行してください！${NC}"
+    echo -e "${GREEN}✅ 最適化完了！ デプロイ準備が整いました。${NC}"
+    echo -e "${CYAN}🚀 'npx wrangler dev' または 'deploy' を実行してください！${NC}"
+
 else
+    # ==========================================
     # ローカル (WASI) の場合
-    echo "🔗 WASM を合体 (Compose) しています..."
-    wac plug "$ROUTER_WASM" --plug "$BACKEND_COMPONENT_WASM" -o app.wasm
+    # ==========================================
+    echo -e "${CYAN}🗄️ DBコンポーネントをビルドします (ドライバ: sqlite)...${NC}"
+    ./build_db.sh sqlite $MODE
 
-    echo -e "${GREEN}✨ 完全体 WASM の完成！${NC}"
+    echo "🔗 [1/2] Backend に DB(SQLite) を合体しています..."
+    wac plug "$BACKEND_COMPONENT_WASM" --plug composed-db.wasm -o backend-with-db.wasm
+
+    echo "🔗 [2/2] Router に Backend+DB を合体しています..."
+    wac plug "$ROUTER_WASM" --plug backend-with-db.wasm -o app.wasm
+
+    echo -e "${GREEN}✨ 完全体 WASM (app.wasm) の完成！${NC}"
 fi

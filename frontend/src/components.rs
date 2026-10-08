@@ -235,32 +235,72 @@ pub fn MobileKeyboardCloser() -> impl IntoView {
 // 👑 4. 削除ボタン付きリストアイテム
 // ==========================================
 #[component]
-pub fn RemovableListItem<F>(
+pub fn RemovableListItem<F, U>(
     #[prop(into)] id: String,
-    #[prop(into)] display_text: String,
+    #[prop(into)] item_name: String,
+    #[prop(into)] quantity: u32,
     on_delete: F, 
+    on_update_qty: U, // 👑 数量変更用の関数を追加
 ) -> impl IntoView
 where
-    // 👑 削除対象の ID (String) を渡して Action を生成するクロージャ
     F: Fn(String) -> Action + Clone + Send + Sync + 'static,
+    U: Fn(String, u32) -> Action + Clone + Send + Sync + 'static,
 {
     let dispatcher = use_context::<Dispatcher<MyApp>>();
 
     mview! {
         li style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #eee;" {
-            span { {display_text} }
-            button 
-                style="background: #ffcdd2; color: #b71c1c; border: 1px solid #e53935; border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 14px;"
-                on:click={
-                    let on_delete = on_delete.clone();
-                    let id_clone = id.clone();
-                    move |_| {
-                        if let Some(disp) = &dispatcher {
-                            disp.dispatch(on_delete(id_clone.clone()));
+            span { {item_name} }
+            
+            div style="display: flex; align-items: center; gap: 8px;" {
+                // 👑 数量減算ボタン (0未満にはしない)
+                button 
+                    style="padding: 2px 8px; font-size: 14px; cursor: pointer;"
+                    on:click={
+                        let on_update_qty = on_update_qty.clone();
+                        let id = id.clone();
+                        move |_| {
+                            if quantity > 1 {
+                                if let Some(disp) = &dispatcher {
+                                    disp.dispatch(on_update_qty(id.clone(), quantity - 1));
+                                }
+                            }
                         }
                     }
+                { "－" }
+
+                span style="font-weight: bold; min-width: 30px; text-align: center;" {
+                    {format!("x{}", quantity)}
                 }
-            { "削除" }
+
+                // 👑 数量加算ボタン
+                button 
+                    style="padding: 2px 8px; font-size: 14px; cursor: pointer;"
+                    on:click={
+                        let on_update_qty = on_update_qty.clone();
+                        let id = id.clone();
+                        move |_| {
+                            if let Some(disp) = &dispatcher {
+                                disp.dispatch(on_update_qty(id.clone(), quantity + 1));
+                            }
+                        }
+                    }
+                { "＋" }
+
+                // 削除ボタン
+                button 
+                    style="background: #ffcdd2; color: #b71c1c; border: 1px solid #e53935; border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 14px; margin-left: 10px;"
+                    on:click={
+                        let on_delete = on_delete.clone();
+                        let id = id.clone();
+                        move |_| {
+                            if let Some(disp) = &dispatcher {
+                                disp.dispatch(on_delete(id.clone()));
+                            }
+                        }
+                    }
+                { "削除" }
+            }
         }
     }
 }

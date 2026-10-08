@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["shared", "frontend", "router", "leptolm-core", "db/driver/driver-d1"] # 👑 leptolm-core を追加
+members = ["shared", "frontend", "router", "leptolm-core", "db/driver/driver-d1", "db/driver/driver-SQLite"] # 👑 leptolm-core を追加
 
 [workspace.dependencies]
 serde = { version = "1.0", features = ["derive"] }

@@ -39,13 +39,18 @@ extern "wasm" fn mbt_ffi_free(position : Int) =
 #|(func (param i32) local.get 0 call $moonbit.decref)
 
 #doc(hidden)
-pub fn wasmExportProcessAddItem(p0 : Int, p1 : Int, p2 : Int) -> Int {
-      @models.wasmExportProcessAddItem(p0, p1, p2)
+pub fn wasmExportProcessAddItemPostReturn(p0 : Int) -> Unit {
+      @models.wasmExportProcessAddItemPostReturn(p0)
 }
 
 #doc(hidden)
-pub fn wasmExportGetItems() -> Int {
-      @models.wasmExportGetItems()
+pub fn wasmExportProcessUpdateItemPostReturn(p0 : Int) -> Unit {
+      @models.wasmExportProcessUpdateItemPostReturn(p0)
+}
+
+#doc(hidden)
+pub fn wasmExportProcessDeleteItemPostReturn(p0 : Int) -> Unit {
+      @models.wasmExportProcessDeleteItemPostReturn(p0)
 }
 
 #doc(hidden)
@@ -54,8 +59,8 @@ pub fn wasmExportGetItemsPostReturn(p0 : Int) -> Unit {
 }
 
 #doc(hidden)
-pub fn wasmExportProcessAddItemPostReturn(p0 : Int) -> Unit {
-      @models.wasmExportProcessAddItemPostReturn(p0)
+pub fn wasmExportProcessUpdateItem(p0 : Int, p1 : Int, p2 : Int) -> Int {
+      @models.wasmExportProcessUpdateItem(p0, p1, p2)
 }
 
 #doc(hidden)
@@ -64,8 +69,13 @@ pub fn wasmExportProcessDeleteItem(p0 : Int, p1 : Int) -> Int {
 }
 
 #doc(hidden)
-pub fn wasmExportProcessDeleteItemPostReturn(p0 : Int) -> Unit {
-      @models.wasmExportProcessDeleteItemPostReturn(p0)
+pub fn wasmExportProcessAddItem(p0 : Int, p1 : Int, p2 : Int) -> Int {
+      @models.wasmExportProcessAddItem(p0, p1, p2)
+}
+
+#doc(hidden)
+pub fn wasmExportGetItems() -> Int {
+      @models.wasmExportGetItems()
 }
 
 fn main {}

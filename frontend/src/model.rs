@@ -15,6 +15,7 @@ pub struct AppState {
     pub status_message: String,
     pub add_item_id: u32,
     pub fetch_list_id: u32,
+    pub update_item_id: u32,
     pub delete_item_id: u32,
     pub items: Vec<Item>,
     pub global_error: Option<String>,
@@ -34,6 +35,9 @@ pub enum Action {
     FetchListAsync,
     FetchListSuccess { request_id: u32, items: Vec<Item> },
     FetchListFailed { request_id: u32, error: String },
+    UpdateItemAsync(String, u32), // (id, new_quantity)
+    UpdateItemSuccess { request_id: u32, message: String },
+    UpdateItemFailed { request_id: u32, error: String },
     DeleteItemAsync(String),
     DeleteItemSuccess { request_id: u32, message: String },
     DeleteItemFailed { request_id: u32, error: String },
@@ -48,5 +52,6 @@ pub enum Effect {
     FetchUserEffect(u32),
     AddItemEffect { request_id: u32, item_name: String, quantity: u32 },
     FetchListEffect { request_id: u32 },
+    UpdateItemEffect { request_id: u32, id: String, quantity: u32 },
     DeleteItemEffect { request_id: u32, id: String },
 }

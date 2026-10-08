@@ -23,7 +23,7 @@ pub fn App() -> impl IntoView {
     mview! {
         div style="font-family: sans-serif; padding: 15px; max-width: 1000px; margin: 0 auto; box-sizing: border-box;" {
             {view! { <MobileKeyboardCloser/> }}
-            h1 style="font-size: 1.5rem; word-break: keep-all;" { "コア分離版 ハイブリッドアーキテクチャ" }
+            h1 style="font-size: 1.5rem; word-break: keep-all;" { "極限無料アーキテクチャ" }
 
             {move || store.global_error().get().map(|err| mview! {
                 div style="background: #ffebee; color: #c62828; padding: 15px; margin-bottom: 20px; border-left: 5px solid #c62828; display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center;" {
@@ -75,13 +75,14 @@ pub fn App() -> impl IntoView {
                 // 👑 修正: <ul> のデフォルトスタイルを消し、RemovableListItem を描画する
                 ul style="margin: 0; padding: 0; list-style: none;" {
                     {move || store.items().get().into_iter().map(|item| {
-                        // 💡 もし現状 `item` が単なる String 型の場合はエラーになります。
-                        // その場合は `crate::model::Item` を { id: String, item_name: String, quantity: u32 } のような構造体に変更してください。
                         view! {
                             <RemovableListItem
                                 id={item.id.clone()}
-                                display_text={format!("{} (x{})", item.item_name, item.quantity)}
+                                item_name={item.item_name.clone()} // 💡 display_text をやめて item_name に変更
+                                quantity={item.quantity}           // 💡 quantity を渡す
                                 on_delete={move |id| Action::DeleteItemAsync(id)}
+                                // 👑 数量変更用のアクションを新しく渡す
+                                on_update_qty={move |id, qty| Action::UpdateItemAsync(id, qty)}
                             />
                         }
                     }).collect_view()}

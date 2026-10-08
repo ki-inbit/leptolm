@@ -111,6 +111,35 @@ pub fn get_items() -> GetItemsRes {
   { items }
 }
 
+pub fn process_update_item(req : UpdateItemReq) -> UpdateItemRes {
+  let conn = match @types.Connection::open("d1") {
+    Ok(c) => c
+    Err(_) => return { success: false, message: "DB接続エラー" }
+  }
+
+  // 数量(quantity)を更新するSQL
+  let query = "UPDATE items SET quantity = ? WHERE id = ?"
+  let params = [req.quantity.to_string(), req.id]
+  
+  let stmt = match @types.Statement::prepare(query, params) {
+    Ok(s) => s
+    Err(_) => return { success: false, message: "クエリ準備エラー" }
+  }
+
+  match @readwrite.exec(conn, stmt) {
+    Ok(affected_rows) => {
+      if affected_rows > 0 {
+        { success: true, message: "数量を変更しました" }
+      } else {
+        { success: false, message: "対象アイテムが見つかりませんでした" }
+      }
+    }
+    Err(_) => {
+      { success: false, message: "数量の更新に失敗しました" }
+    }
+  }
+}
+
 pub fn process_delete_item(req : DeleteItemReq) -> DeleteItemRes {
   // 1. DB接続を開く
   let conn = match @types.Connection::open("d1") {

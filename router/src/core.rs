@@ -39,6 +39,7 @@ pub enum HttpMethod {
 pub enum LeptolmRoute<'a> {
     ApiAddItem,
     ApiGetItems,
+    ApiUpdateItem,
     ApiDeleteItem,
     FrontendApp,
     Unity(&'a str),
@@ -53,6 +54,7 @@ impl<'a> LeptolmRoute<'a> {
         match (method, clean_path) {
             (HttpMethod::Post, "api/add_item") => LeptolmRoute::ApiAddItem,
             (HttpMethod::Get, "api/items") => LeptolmRoute::ApiGetItems, 
+            (HttpMethod::Post, "api/update_item") => LeptolmRoute::ApiUpdateItem,
             (HttpMethod::Post, "api/delete_item") => LeptolmRoute::ApiDeleteItem,
             (_, p) if p.starts_with("api") => LeptolmRoute::NotFound,
 
@@ -88,6 +90,19 @@ pub fn router_engine(route: LeptolmRoute, req_body_bytes: Vec<u8>) -> RawRespons
                 content_type: "application/x-msgpack".into(), // 👑 2. ヘッダー変更
                 encoding: None,
                 // 👑 3. 構造体をMessagePackのバイト列に変換
+                body: rmp_serde::to_vec(&res_data).unwrap_or_default(),
+            }
+        }
+        LeptolmRoute::ApiUpdateItem => {
+            let req: shared::UpdateItemReq = rmp_serde::from_slice(&req_body_bytes)
+            .expect("Failed to deserialize UpdateItemReq");
+
+            let res_data = shared::process_update_item(&req);
+
+            RawResponse {
+                status: 200,
+                content_type: "application/x-msgpack".into(),
+                encoding: None,
                 body: rmp_serde::to_vec(&res_data).unwrap_or_default(),
             }
         }

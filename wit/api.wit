@@ -12,6 +12,16 @@ interface models {
         server-time: string,
     }
 
+    record update-item-req {
+        id: string,
+        quantity: u32,
+    }
+
+    record update-item-res {
+        success: bool,
+        message: string,
+    }
+
     record delete-item-req {
         id: string,
     }
@@ -28,7 +38,6 @@ interface models {
     }
 
     record get-items-res {
-        // 👑 HTMLタグとして消えないようにスペースを入れています
         items: list< item >,
     }
     
@@ -36,7 +45,10 @@ interface models {
 
     process-add-item: func(req: add-item-req) -> add-item-res;
 
+    process-update-item: func(req: update-item-req) -> update-item-res;
+
     process-delete-item: func(req: delete-item-req) -> delete-item-res;
+    
 }
 
 world shared-types {
