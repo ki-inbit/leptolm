@@ -76,35 +76,25 @@ fi
 # ==========================================
 # 3. 🌙 MoonBit バックエンドのビルド
 # ==========================================
-echo "🌙 MoonBit バインディングを生成中..."
-wit-bindgen moonbit wit --out-dir backend/moonbit --world backend
+echo "🌙 MoonBit バインディングを生成中 (--ignore-stub)..."
+wit-bindgen moonbit wit --out-dir backend/moonbit --world backend --ignore-stub
 rm -f backend/moonbit/moon.mod.json
 
-sed -i '2i \  "is-main": true,' backend/moonbit/gen/moon.pkg.json
-if ! grep -q "fn main" backend/moonbit/gen/ffi.mbt; then
-    echo 'fn main {}' >> backend/moonbit/gen/ffi.mbt
-fi
-
-# models パッケージに wasi:sql の依存を注入
-cat << 'EOF' > patch_backend_moon.js
+# 👑 wit-bindgen に毎回上書きされるルートの pkg.json に is-main だけ付与する
+node -e "
 const fs = require('fs');
-const pkgPath = 'backend/moonbit/gen/interface/leptolm/api/models/moon.pkg.json';
+const pkgPath = 'backend/moonbit/gen/moon.pkg.json';
 if (fs.existsSync(pkgPath)) {
     const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
-    if (!pkg.import) pkg.import = [];
-    const typesPath = 'leptolm/api/interface/wasi/sql/types';
-    const rwPath = 'leptolm/api/interface/wasi/sql/readwrite';
-    if (!pkg.import.find(i => i === typesPath || i.path === typesPath)) {
-        pkg.import.push({ "path": typesPath, "alias": "types" });
-    }
-    if (!pkg.import.find(i => i === rwPath || i.path === rwPath)) {
-        pkg.import.push({ "path": rwPath, "alias": "readwrite" });
-    }
+    pkg['is-main'] = true;
     fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
 }
-EOF
-node patch_backend_moon.js
-rm patch_backend_moon.js
+"
+
+# ffi.mbt に main 関数を補完
+if [ -f "backend/moonbit/gen/ffi.mbt" ] && ! grep -q "fn main" "backend/moonbit/gen/ffi.mbt"; then
+    echo -e '\nfn main {}\n' >> backend/moonbit/gen/ffi.mbt
+fi
 
 echo "🌙 MoonBit バックエンドをビルド中 (${MODE} モード)..."
 cd backend/moonbit

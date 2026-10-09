@@ -13551,7 +13551,7 @@ const handleTable11 = [T_FLAG, 0];
 handleTable11._createdReps = new Set();
 const finalizationRegistry11 = finalizationRegistryCreate((handle) => {
   const { rep } = rscTableRemove(handleTable11, handle);
-  exports4['3'](rep);
+  exports4['4'](rep);
 });
 
 HANDLE_TABLES[11] = handleTable11;
@@ -13561,7 +13561,7 @@ const handleTable12 = [T_FLAG, 0];
 handleTable12._createdReps = new Set();
 const finalizationRegistry12 = finalizationRegistryCreate((handle) => {
   const { rep } = rscTableRemove(handleTable12, handle);
-  exports4['4'](rep);
+  exports4['2'](rep);
 });
 
 HANDLE_TABLES[12] = handleTable12;
@@ -13571,7 +13571,7 @@ const handleTable13 = [T_FLAG, 0];
 handleTable13._createdReps = new Set();
 const finalizationRegistry13 = finalizationRegistryCreate((handle) => {
   const { rep } = rscTableRemove(handleTable13, handle);
-  exports4['2'](rep);
+  exports4['3'](rep);
 });
 
 HANDLE_TABLES[13] = handleTable13;
@@ -16516,9 +16516,9 @@ const $init = (() => {
       actual: {
         '0': exports6.adapter0,
         '1': exports6.adapter1,
-        '2': exports5['wasi:sql/types#[dtor]connection'],
-        '3': exports5['wasi:sql/types#[dtor]error'],
-        '4': exports5['wasi:sql/types#[dtor]statement'],
+        '2': exports5['wasi:sql/types#[dtor]statement'],
+        '3': exports5['wasi:sql/types#[dtor]connection'],
+        '4': exports5['wasi:sql/types#[dtor]error'],
       },
       shim: {
         $imports: exports4.$imports,

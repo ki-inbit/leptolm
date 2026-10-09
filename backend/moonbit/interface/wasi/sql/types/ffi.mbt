@@ -13,11 +13,12 @@ fn wasmImportMethodErrorTrace(p0 : Int, p1 : Int)  = "wasi:sql/types" "[method]e
 fn wasmImportStaticConnectionOpen(p0 : Int, p1 : Int, p2 : Int)  = "wasi:sql/types" "[static]connection.open"
 
 ///|
-extern "wasm" fn mbt_ffi_ptr2str(ptr : Int, len : Int) -> String =
-#|(func (param i32) (param i32) (result i32)
-#| local.get 0
-#| local.get 1 call $moonbit.init_array16
-#| local.get 0)
+extern "wasm" fn mbt_ffi_store32(offset : Int, value : Int) =
+#|(func (param i32) (param i32) local.get 0 local.get 1 i32.store)
+
+///|
+extern "wasm" fn mbt_ffi_free(position : Int) =
+#|(func (param i32) local.get 0 call $moonbit.decref)
 
 ///|
 #owned(str)
@@ -25,12 +26,11 @@ extern "wasm" fn mbt_ffi_str2ptr(str : String) -> Int =
 #|(func (param i32) (result i32) local.get 0)
 
 ///|
-extern "wasm" fn mbt_ffi_store32(offset : Int, value : Int) =
-#|(func (param i32) (param i32) local.get 0 local.get 1 i32.store)
-
-///|
-extern "wasm" fn mbt_ffi_free(position : Int) =
-#|(func (param i32) local.get 0 call $moonbit.decref)
+extern "wasm" fn mbt_ffi_ptr2str(ptr : Int, len : Int) -> String =
+#|(func (param i32) (param i32) (result i32)
+#| local.get 0
+#| local.get 1 call $moonbit.init_array16
+#| local.get 0)
 
 ///|
 extern "wasm" fn mbt_ffi_load8_u(offset : Int) -> Int =
