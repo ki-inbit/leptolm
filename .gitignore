@@ -49,6 +49,7 @@ Thumbs.db
 
 #ローカルdb
 .wrangler/
+local_dev.db
 
 #生成物
 backend/moonbit/gen/ffi.mbt
