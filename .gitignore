@@ -4,6 +4,12 @@
 # target/ フォルダには数GBに及ぶビルド済みバイナリ（WASMやLinux用バイナリ）が
 # 生成されるため、絶対にGit管理に含めてはいけません。
 /target/
+**/target/
+**/_build/
+*.wasm
+/worker/src/wasm/
+/node_modules/
+/.wrangler/
 
 # Cargoがローカルでのビルド順序を記録する一時ファイル
 **/*.rs.bk
