@@ -117,5 +117,21 @@ npx wrangler deploy
 
 - **D1の非同期問題の解決**: WASMからD1にアクセスする場合、一度JSまで制御を戻す必要がありますが、ドライバとCloudflare用のJS間でリプレイパターンを構築することで同期的なクエリ実行を実現しています。これによりコアロジックは非同期処理に汚染されません。
 
+## 🛠️ Prerequisites (Environment)
+
+本プロジェクトは **Dev Container** に完全対応しています。ローカルの環境を汚すことなく、複雑なWASMツールチェーンをすぐに利用できます。
+
+### Option 1: Dev Container (Recommended)
+VS Code と Docker があれば、リポジトリを開いて「Reopen in Container」を選択するだけで、必要なツール（MoonBit, Rust, wasm-tools, wac等）がすべて揃った環境が立ち上がります。
+
+### Option 2: GitHub Codespaces
+ブラウザ上ですぐに試したい場合は、リポジトリトップの `<> Code` ボタンから Codespaces を起動してください。1クリックで開発・ビルド環境が完成します。
+
+### 🔑 Cloudflare Tokens (Edge Deploy)
+Cloudflare D1 へのデプロイやエッジのシミュレーションを行う場合のみ、コンテナ内で以下のコマンドを実行してログイン（またはトークンを設定）してください。
+（※ Local SQLite モードで遊ぶだけなら不要です）
+```bash
+npx wrangler login
+```
 ## 📄 License
 MIT License
