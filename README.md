@@ -1,33 +1,21 @@
 # 🚀 Multi-Target WASM CRUD Architecture
 
-[![Leptos](https://img.shields.io/badge/Leptos-Frontend-B7410E?logo=rust)](https://leptos.dev/)
-[![MoonBit](https://img.shields.io/badge/MoonBit-Core-f34b7d?logo=moonbit)](https://moonbitlang.com/)
-[![Rust](https://img.shields.io/badge/Rust-Driver-000000?logo=rust)](https://www.rust-lang.org/)
-[![WebAssembly](https://img.shields.io/badge/WASM-Component_Model-654FF0?logo=webassembly)](https://webassembly.org/)
-[![Cloudflare D1](https://img.shields.io/badge/Cloudflare-D1-F38020?logo=cloudflare)](https://developers.cloudflare.com/d1/)
+A fully multi-target CRUD application utilizing the WebAssembly Component Model (WASI P2) to seamlessly switch between local (SQLite) and edge (Cloudflare D1) environments using a single core logic.
 
-WebAssembly Component Model (WASI P2) を活用し、**「1つのコアロジックでローカル(SQLite)とエッジ(Cloudflare D1)をシームレスに行き来する」** 完全マルチターゲットなCRUDアプリケーションです。
-インフラ環境の差異はすべてWASMのコンポーネントレベルで吸収されるため、ソースコードを1行も変更することなくビルドターゲットを切り替えることができます。
+All infrastructure differences are abstracted at the WASM component level, allowing you to switch build targets without changing a single line of source code.
 
 ## ✨ Features
 
-- **Hexagonal Architecture via WASM Components**: コアロジック(MoonBit)とインフラ層を完全に分離。
+- **Hexagonal Architecture via WASM Components**: Complete separation of the core logic (MoonBit) and infrastructure layers.
+- **Standardized Database Access (`wasi:sql`)**: Adopts the `wasi:sql` interface, a standard WASI proposal, achieving database-agnostic abstraction.
+- **Zero-Code Target Switching**: Switch storage backends simply by running `build.sh local` or `build.sh cloudflare`.
+- **Environment Normalization**: Automatically normalizes infrastructure type differences—such as SQLite (`Int64`) and D1 (`Double`)—within the MoonBit DB facade layer.
+- **High Performance RPC**: Utilizes MessagePack for binary communication between the frontend and backend.
+- **Rust Frontend (Leptos + TEA)**: Combines the Rust web framework Leptos with The Elm Architecture (TEA) pattern to build robust state management and UI.
 
-- **Standardized Database Access (`wasi:sql`)**: WASIの標準提案である `wasi:sql` インターフェースを採用。特定のDB実装に依存しない抽象化を実現。
-
-- **Zero-Code Target Switching**: `build.sh local` と `build.sh cloudflare` だけでストレージを切り替え。
-
-- **Environment Normalization**: SQLite (`Int64`) と D1 (`Double`) のインフラ型差異を、MoonBit DBファサード層で自動正規化。
-
-- **High Performance RPC**: フロントエンド・バックエンド間の通信には MessagePack を採用。
-
-- **Rust Frontend (Leptos + TEA)**: RustのWebフレームワーク Leptos に The Elm Architecture (TEA) パターンを組み合わせ、堅牢な状態管理とUIを構築。
-  
 ## 🏗️ Architecture
 
-このプロジェクトは、WebAssembly Interface Types (WIT) を介して複数のWASMモジュール（MoonBitとRust）を `wac` によって結合する高度なコンポーネント指向アーキテクチャを採用しています。
-
-  
+This project adopts an advanced component-oriented architecture, composing multiple WASM modules (MoonBit and Rust) via WebAssembly Interface Types (WIT) using `wac`.
 
 ```mermaid
 
@@ -51,34 +39,30 @@ graph TD
 
 ```
 
-  
+### Component Roles
 
-### コンポーネントの役割
-
-**Frontend (Leptos + TEA)**: Rustベースのフレームワークである Leptos を採用し、The Elm Architecture (Model-View-Update) パターンでUIと状態を堅牢に管理。バックエンドとの通信には MessagePack を用いたバイナリRPCを採用し、Rustの強力な型システムをフルスタックで共有しています
-  
-**backend-component (MoonBit)**: アプリケーションのビジネスロジック。インフラ（DBの種類）には一切依存しません。
-
-**db-facade (MoonBit)**: CoreとDriverの仲介役。WITのライフサイクル管理や、SQLite/D1間のデータ型の揺れ（Int64 / Double）を正規化し、境界の文字コード（UTF-16）を維持します。
-
-**DB Driver (Rust)**: 各ストレージに特化した低レイヤードライバ。WITを介してFacadeとリンクされます。
+- **Frontend (Leptos + TEA)**: Uses Leptos, a Rust-based framework, to robustly manage UI and state using The Elm Architecture (Model-View-Update) pattern. Adopts binary RPC using MessagePack for backend communication, sharing Rust's powerful type system across the full stack.
+- **backend-component (MoonBit)**: The business logic of the application. Strictly infrastructure-agnostic (independent of the DB type).
+- **db-facade (MoonBit)**: The mediator between the Core and Driver. Handles WIT lifecycle management, normalizes data type variations (`Int64` / `Double`) between SQLite and D1, and maintains boundary character encoding (UTF-16).
+- **DB Driver (Rust)**: Low-layer drivers specialized for each storage backend. Linked to the Facade via WIT.
 
 ## 🛠️ Prerequisites
 
-ビルドには以下のツールチェーンが必要です。
+The following toolchains are required for building:
 
-- [MoonBit CLI](https://docs.moonbitlang.com/en/latest/tools/cli.html) (Core / Facadeの開発)
-- [Rust & Cargo](https://rustup.rs/) (Driverの開発)
-- [cargo-component](https://github.com/bytecodealliance/cargo-component)
-- [Wasm-tools](https://github.com/bytecodealliance/wasm-tools)
-- [WAC (WebAssembly Compose)](https://github.com/bytecodealliance/wac)
-- Node.js & Wrangler (Cloudflare デプロイ用)
+- MoonBit CLI (for Core / Facade development)
+- Rust & Cargo (for Driver development)
+- cargo-component
+- wasm-tools
+- WAC (WebAssembly Compose)
+- Node.js & Wrangler (for Cloudflare deployment)
+
 ## 🚀 Build & Run
 
-ビルドスクリプトは、必要なスタブ生成 (`wit-bindgen`)、各言語のコンパイル、および `wac plug` によるコンポーネントの結合を全自動で行います。
-### Local Development (SQLite)
+The build script fully automates stub generation (`wit-bindgen`), compilation of each language, and component composition via `wac plug`.
 
-ローカルでの高速なテストや開発にはSQLiteを使用します。
+### Local Development (SQLite)
+We use SQLite for fast local testing and development.
 
 ```bash
 
@@ -91,8 +75,7 @@ wasmtime serve -S cli=y --dir=. app.wasm
 ```
 
 ### Production Edge (Cloudflare D1)
-
-本番環境のエッジワーカー向けにデプロイする場合はD1を使用します。
+We use D1 for deploying to production edge workers.
 
 ```bash
 
@@ -109,29 +92,30 @@ npx wrangler deploy
 
 ## 🧠 Technical Highlights
 
-開発プロセスにおいて、WASM Component エコシステムの最先端特有の課題を解決しています。
+Throughout the development process, we resolved cutting-edge challenges unique to the WASM Component ecosystem.
 
-- **`wit-bindgen` Stub Management**: `--ignore-stub` を活用し、自動生成されるバインディングと手書きのロジック（型変換やグローバル状態保持）を安全に共存させています。
+- **`wit-bindgen` Stub Management**: Utilizes `--ignore-stub` to safely coexist auto-generated bindings with hand-written logic (such as type conversions and global state retention).
+- **Canonical ABI & `jco` Optimization**: Avoids and optimizes the `jco transpile` panic (due to the unimplemented `utf16 copier`) caused by UTF-16 ⇔ UTF-8 boundary shims during `wac plug` composition by aligning the encoding definitions of both components.
+- **Solving D1's Asynchronous I/O Problem**: When accessing D1 from WASM, control must momentarily return to JS. We achieved synchronous query execution by building a "Replay Pattern" between the driver and Cloudflare's JS environment. This prevents the core logic from being contaminated by asynchronous operations.
 
-- **Canonical ABI & `jco` Optimization**: `wac plug` 結合時に発生する UTF-16 ⇔ UTF-8 の境界Shimによる `jco transpile` パニック（`utf16 copier` 未実装問題）を、両コンポーネントのエンコーディング定義を揃えることで回避・最適化しています。
+## 🛠️ Environment Setup
 
-- **D1の非同期問題の解決**: WASMからD1にアクセスする場合、一度JSまで制御を戻す必要がありますが、ドライバとCloudflare用のJS間でリプレイパターンを構築することで同期的なクエリ実行を実現しています。これによりコアロジックは非同期処理に汚染されません。
-
-## 🛠️ Prerequisites (Environment)
-
-本プロジェクトは **Dev Container** に完全対応しています。ローカルの環境を汚すことなく、複雑なWASMツールチェーンをすぐに利用できます。
+This project is fully compatible with **Dev Containers**. You can immediately utilize the complex WASM toolchain without polluting your local environment.
 
 ### Option 1: Dev Container (Recommended)
-VS Code と Docker があれば、リポジトリを開いて「Reopen in Container」を選択するだけで、必要なツール（MoonBit, Rust, wasm-tools, wac等）がすべて揃った環境が立ち上がります。
+With VS Code and Docker, simply open the repository and select "Reopen in Container" to launch an environment fully equipped with all necessary tools (MoonBit, Rust, wasm-tools, wac, etc.).
 
 ### Option 2: GitHub Codespaces
-ブラウザ上ですぐに試したい場合は、リポジトリトップの `<> Code` ボタンから Codespaces を起動してください。1クリックで開発・ビルド環境が完成します。
+If you want to try it immediately in your browser, launch Codespaces from the `<> Code` button at the top of the repository. Your development and build environment will be ready in one click.
 
 ### 🔑 Cloudflare Tokens (Edge Deploy)
-Cloudflare D1 へのデプロイやエッジのシミュレーションを行う場合のみ、コンテナ内で以下のコマンドを実行してログイン（またはトークンを設定）してください。
-（※ Local SQLite モードで遊ぶだけなら不要です）
+Only when deploying to Cloudflare D1 or simulating the edge, run the following command inside the container to log in (or set up a token).
+*(Not required if you are just playing around in Local SQLite mode)*
+
 ```bash
 npx wrangler login
 ```
+
 ## 📄 License
+
 MIT License
