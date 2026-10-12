@@ -9,7 +9,7 @@
 //   "moonbitlang/x@0.4.6",
 // }
 
-name = "leptolm/api"
+name = "leptolm/app"
 
 version = "0.1.0"
 

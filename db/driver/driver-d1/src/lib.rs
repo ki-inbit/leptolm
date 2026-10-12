@@ -7,8 +7,8 @@ mod bindings {
     });
 }
 
-use bindings::exports::leptolm::api::db_spi::Guest;
-use bindings::leptolm::api::d1_replay;
+use bindings::exports::leptolm::app::db_spi::Guest;
+use bindings::leptolm::app::d1_replay;
 use bindings::wasi::sql::types::{Row, DataType};
 
 struct Component;

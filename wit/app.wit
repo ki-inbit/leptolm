@@ -1,4 +1,4 @@
-package leptolm:api;
+package leptolm:app;
 
 interface models {
     record add-item-req {

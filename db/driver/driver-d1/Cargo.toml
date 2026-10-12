@@ -11,4 +11,4 @@ wit-bindgen = "0.30.0" # プロジェクトで使っている wit-bindgen のバ
 serde_json = "1.0"
 
 [package.metadata.component]
-package = "leptolm:api"
+package = "leptolm:app"

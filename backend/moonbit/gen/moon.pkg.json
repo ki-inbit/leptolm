@@ -2,7 +2,7 @@
   "warn-list": "-44",
   "import": [
     {
-      "path": "leptolm/api/gen/interface/leptolm/api/models",
+      "path": "leptolm/app/gen/interface/leptolm/app/models",
       "alias": "models"
     }
   ],
@@ -12,14 +12,14 @@
       "heap-start-address": 16,
       "exports": [
         "mbt_ffi_cabi_realloc:cabi_realloc",
-        "wasmExportGetItems:leptolm:api/models#get-items",
-        "wasmExportGetItemsPostReturn:cabi_post_leptolm:api/models#get-items",
-        "wasmExportProcessAddItem:leptolm:api/models#process-add-item",
-        "wasmExportProcessAddItemPostReturn:cabi_post_leptolm:api/models#process-add-item",
-        "wasmExportProcessDeleteItem:leptolm:api/models#process-delete-item",
-        "wasmExportProcessDeleteItemPostReturn:cabi_post_leptolm:api/models#process-delete-item",
-        "wasmExportProcessUpdateItem:leptolm:api/models#process-update-item",
-        "wasmExportProcessUpdateItemPostReturn:cabi_post_leptolm:api/models#process-update-item"
+        "wasmExportGetItems:leptolm:app/models#get-items",
+        "wasmExportGetItemsPostReturn:cabi_post_leptolm:app/models#get-items",
+        "wasmExportProcessAddItem:leptolm:app/models#process-add-item",
+        "wasmExportProcessAddItemPostReturn:cabi_post_leptolm:app/models#process-add-item",
+        "wasmExportProcessDeleteItem:leptolm:app/models#process-delete-item",
+        "wasmExportProcessDeleteItemPostReturn:cabi_post_leptolm:app/models#process-delete-item",
+        "wasmExportProcessUpdateItem:leptolm:app/models#process-update-item",
+        "wasmExportProcessUpdateItemPostReturn:cabi_post_leptolm:app/models#process-update-item"
       ]
     }
   },

@@ -173,7 +173,7 @@ EOF
     npx jco transpile app.wasm \
         -o worker/src/wasm \
         --name appy \
-        --map leptolm:api/d1-replay=./d1-replay.js \
+        --map leptolm:app/d1-replay=./d1-replay.js \
         --base64-cutoff=0
 
     echo "🔧 Cloudflare Workers 向けに WASM インポートを最適化中..."

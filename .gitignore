@@ -53,11 +53,11 @@ local_dev.db
 
 #生成物
 backend/moonbit/gen/ffi.mbt
-backend/moonbit/gen/interface/leptolm/api/models/ffi.mbt
+backend/moonbit/gen/interface/leptolm/app/models/ffi.mbt
 backend/moonbit/interface/wasi/sql/readwrite/ffi.mbt
 backend/moonbit/interface/wasi/sql/types/ffi.mbt
 db/gen/ffi.mbt
 db/gen/interface/wasi/sql/readwrite/ffi.mbt
 db/gen/interface/wasi/sql/types/ffi.mbt
-db/interface/leptolm/api/db-spi/ffi.mbt
+db/interface/leptolm/app/db-spi/ffi.mbt
 db/interface/wasi/sql/types/ffi.mbt

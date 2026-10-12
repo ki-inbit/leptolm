@@ -2,15 +2,15 @@
   "warn-list": "-44",
   "import": [
     {
-      "path": "leptolm/api/gen/interface/wasi/sql/types",
+      "path": "leptolm/app/gen/interface/wasi/sql/types",
       "alias": "types"
     },
     {
-      "path": "leptolm/api/interface/leptolm/api/db-spi",
+      "path": "leptolm/app/interface/leptolm/app/db-spi",
       "alias": "db_spi"
     },
     {
-      "path": "leptolm/api/interface/wasi/sql/types",
+      "path": "leptolm/app/interface/wasi/sql/types",
       "alias": "spi_types"
     },
     {

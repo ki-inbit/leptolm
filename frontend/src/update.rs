@@ -152,7 +152,7 @@ impl ElmApp for MyApp {
                     let body_bytes = rmp_serde::to_vec(&req_body).unwrap_or_default();
                     
                     let origin = web_sys::window().and_then(|w| w.location().origin().ok()).unwrap_or_else(|| "http://127.0.0.1:3000".to_string());
-                    let url = format!("{}/api/add_item", origin.trim_end_matches('/'));
+                    let url = format!("{}/app/add_item", origin.trim_end_matches('/'));
                     let client = reqwest::Client::new();
                     
                     match client.post(&url)
@@ -176,7 +176,7 @@ impl ElmApp for MyApp {
             Effect::FetchListEffect { request_id } => {
                 wasm_bindgen_futures::spawn_local(async move {
                     let origin = web_sys::window().and_then(|w| w.location().origin().ok()).unwrap_or_else(|| "http://127.0.0.1:3000".to_string());
-                    let url = format!("{}/api/items", origin.trim_end_matches('/'));
+                    let url = format!("{}/app/items", origin.trim_end_matches('/'));
                     let client = reqwest::Client::new();
                     
                     match client.get(&url)
@@ -211,7 +211,7 @@ impl ElmApp for MyApp {
                     let body_bytes = rmp_serde::to_vec(&req_body).unwrap_or_default();
                     
                     let origin = web_sys::window().and_then(|w| w.location().origin().ok()).unwrap_or_else(|| "http://127.0.0.1:3000".to_string());
-                    let url = format!("{}/api/delete_item", origin.trim_end_matches('/'));
+                    let url = format!("{}/app/delete_item", origin.trim_end_matches('/'));
                     let client = reqwest::Client::new();
                     
                     match client.post(&url)
@@ -240,7 +240,7 @@ impl ElmApp for MyApp {
                     let body_bytes = rmp_serde::to_vec(&req_body).unwrap_or_default();
                     
                     let origin = web_sys::window().and_then(|w| w.location().origin().ok()).unwrap_or_else(|| "http://127.0.0.1:3000".to_string());
-                    let url = format!("{}/api/update_item", origin.trim_end_matches('/'));
+                    let url = format!("{}/app/update_item", origin.trim_end_matches('/'));
                     let client = reqwest::Client::new();
                     
                     match client.post(&url)

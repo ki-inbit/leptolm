@@ -4,7 +4,7 @@ wit_bindgen::generate!({
     generate_all,
 });
 
-use exports::leptolm::api::db_spi::Guest;
+use exports::leptolm::app::db_spi::Guest;
 use rusqlite::{params_from_iter, types::Value as SqlValue, Connection};
 use wasi::sql::types::{DataType, Row};
 

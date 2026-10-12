@@ -11,7 +11,7 @@ pub mod moonbit {
         world: "router",
         path: "../wit",
         with: {
-            "leptolm:api/models": shared::leptolm::api::models,
+            "leptolm:app/models": shared::leptolm::app::models,
         }
     });
 }
@@ -24,7 +24,7 @@ pub mod moonbit {
         world: "cloudflare-router",
         path: "../wit",
         with: {
-            "leptolm:api/models": shared::leptolm::api::models,
+            "leptolm:app/models": shared::leptolm::app::models,
         }
     });
 }
@@ -52,11 +52,11 @@ impl<'a> LeptolmRoute<'a> {
         let clean_path = path.trim_matches('/');
 
         match (method, clean_path) {
-            (HttpMethod::Post, "api/add_item") => LeptolmRoute::ApiAddItem,
-            (HttpMethod::Get, "api/items") => LeptolmRoute::ApiGetItems, 
-            (HttpMethod::Post, "api/update_item") => LeptolmRoute::ApiUpdateItem,
-            (HttpMethod::Post, "api/delete_item") => LeptolmRoute::ApiDeleteItem,
-            (_, p) if p.starts_with("api") => LeptolmRoute::NotFound,
+            (HttpMethod::Post, "app/add_item") => LeptolmRoute::ApiAddItem,
+            (HttpMethod::Get, "app/items") => LeptolmRoute::ApiGetItems, 
+            (HttpMethod::Post, "app/update_item") => LeptolmRoute::ApiUpdateItem,
+            (HttpMethod::Post, "app/delete_item") => LeptolmRoute::ApiDeleteItem,
+            (_, p) if p.starts_with("app") => LeptolmRoute::NotFound,
 
             (HttpMethod::Get, p) if p.starts_with("unity/") => {
                 LeptolmRoute::Unity(p.strip_prefix("unity/").unwrap_or(""))
